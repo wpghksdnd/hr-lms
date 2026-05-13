@@ -96,4 +96,4 @@ def health():
     return jsonify({"status": "챗봇 서버 정상 작동 중"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5005, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
