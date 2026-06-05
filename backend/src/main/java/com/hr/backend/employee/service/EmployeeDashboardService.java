@@ -28,7 +28,8 @@ public class EmployeeDashboardService {
 
     public DashboardResponse getDashboardData() {
         User user = getCurrentUser();
-        List<Enrollment> enrollments = enrollmentRepository.findAllByUserId(user.getUserId());
+        List<Enrollment> enrollments = enrollmentRepository.findAllByUserId(user.getUserId())
+                .stream().filter(e -> e.getRound().getCourse().isActive()).toList();
         long completed = enrollments.stream().filter(e -> e.getStatus() == Enrollment.Status.DONE).count();
         long current = enrollments.stream().filter(e -> e.getStatus() != Enrollment.Status.DONE).count();
         double avg = enrollments.stream().mapToInt(Enrollment::getProgress).average().orElse(0.0);

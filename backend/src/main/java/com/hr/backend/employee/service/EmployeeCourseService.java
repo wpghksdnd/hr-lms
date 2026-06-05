@@ -6,6 +6,7 @@ import com.hr.backend.domain.course.entity.CourseVideo;
 import com.hr.backend.domain.course.repository.CourseRepository;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
+import com.hr.backend.domain.notification.service.NotificationService;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import com.hr.backend.employee.dto.response.CourseResponse;
@@ -34,6 +35,7 @@ public class EmployeeCourseService {
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationService notificationService;
 
     public Page<CourseResponse.CourseListItem> getAllCourses(String searchKeyword, String category, Pageable pageable) {
         User currentUser = getCurrentUser();
@@ -85,7 +87,12 @@ public class EmployeeCourseService {
         Enrollment enrollment = Enrollment.builder().user(user).round(round).build();
         enrollment.approve();  // 자체 신청 즉시 승인 처리 (이수증 발급 조건 충족을 위해)
         enrollment.changeStatus(Enrollment.Status.IN_PROGRESS);
-        enrollmentRepository.save(enrollment);
+        Enrollment saved = enrollmentRepository.save(enrollment);
+        // 수강 승인 알림 발송
+        notificationService.notifyEnrollmentApproved(
+                user,
+                round.getCourse().getTitle(),
+                saved.getEnrollmentId());
     }
 
     private CourseResponse.CourseListItem toListItem(Course c, User user) {

@@ -1,0 +1,33 @@
+import axios from 'axios';
+
+const client = axios.create({
+  baseURL: '',   // Next.js rewrites가 /api/* → 백엔드로 프록시
+  headers: { 'Content-Type': 'application/json' },
+});
+
+client.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+client.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    // 백엔드가 { error: "..." } 형식으로 내려올 때 .message 로 통일
+    if (error.response?.data) {
+      const d = error.response.data;
+      if (!d.message && d.error) d.message = d.error;
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default client;

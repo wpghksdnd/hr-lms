@@ -11,6 +11,7 @@ import com.hr.backend.domain.user.repository.UserRepository;
 import com.hr.backend.employee.dto.response.MyCourseResponse;
 import com.hr.backend.employee.exception.ResourceNotFoundException;
 import com.hr.backend.employee.util.CurrentUserProvider;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -35,7 +36,9 @@ public class EmployeeMyCourseService {
 
     public Page<MyCourseResponse> getMyCourses(Pageable pageable) {
         List<MyCourseResponse> list = enrollmentRepository.findAllByUserId(getCurrentUser().getUserId())
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .filter(e -> e.getRound().getCourse().isActive())
+                .map(this::toResponse).toList();
         int start = (int) Math.min(pageable.getOffset(), list.size());
         int end = Math.min(start + pageable.getPageSize(), list.size());
         return new PageImpl<>(list.subList(start, end), pageable, list.size());
@@ -57,12 +60,16 @@ public class EmployeeMyCourseService {
                 .collect(Collectors.toMap(w -> w.getVideo().getVideoId(), w -> w));
 
         List<MyCourseResponse.MyCourseVideoWatchStatusDto> videos = c.getLectures().stream()
-                .flatMap(l -> l.getVideos().stream())
-                .sorted(Comparator.comparingInt(CourseVideo::getSortOrder))
-                .map(v -> {
+                .flatMap(l -> l.getVideos().stream()
+                        .map(vid -> Map.entry(l.getLectureId(), vid)))
+                .sorted(Comparator.comparingInt(entry -> entry.getValue().getSortOrder()))
+                .map(entry -> {
+                    Long lectureId = entry.getKey();
+                    CourseVideo v  = entry.getValue();
                     VideoWatchLog log = watchLogMap.get(v.getVideoId());
                     return MyCourseResponse.MyCourseVideoWatchStatusDto.builder()
                             .videoId(v.getVideoId())
+                            .lectureId(lectureId)
                             .title(v.getTitle())
                             .videoURL(v.getVideoUrl())
                             .durationSec(v.getDurationSec())

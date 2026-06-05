@@ -61,7 +61,10 @@ public class EmployeeLearningCompletionService {
         Course course = enrollment.getRound().getCourse();
         int totalLectures = course.getLectures().size();
         long completedLectures = lectureProgressRepository.countByUser_UserIdAndLecture_Course_CourseIdAndCompletedTrue(user.getUserId(), course.getCourseId());
-        boolean lecturesDone = totalLectures == 0 || completedLectures >= totalLectures;
+        // 영상이 없는 단원은 별도 시청 없이 완료로 간주 (콘텐츠 없는 단원은 수강 대상 아님)
+        long emptyLectures = course.getLectures().stream()
+                .filter(l -> l.getVideos().isEmpty()).count();
+        boolean lecturesDone = totalLectures == 0 || (completedLectures + emptyLectures) >= totalLectures;
         boolean examPassed = attemptRepository.existsByUser_UserIdAndExam_Course_CourseIdAndPassedTrue(user.getUserId(), course.getCourseId());
         boolean surveyCompleted = true;
         // boolean surveySubmitted = surveyRepository.findFirstByCourse_CourseIdAndActiveTrue(course.getCourseId())

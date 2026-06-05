@@ -1,0 +1,178 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import type { LoginResponse } from '@/api/auth';
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/notifications';
+import type { NotificationItem } from '@/api/types';
+
+const NAV_TABS = [
+  { href: '/dashboard', label: '홈' },
+  { href: '/courses', label: '수강신청' },
+  { href: '/learning', label: '동영상 학습' },
+  { href: '/exam', label: '시험' },
+  { href: '/calendar', label: '캘린더' },
+  { href: '/notices', label: '공지사항' },
+  { href: '/chatbot', label: 'AI 챗봇' },
+  { href: '/mypage', label: '마이페이지' },
+];
+
+const NOTI_ICON: Record<string, string> = {
+  ENROLLMENT_APPROVED: '✅',
+  ENROLLMENT_REJECTED: '❌',
+  CERTIFICATE_ISSUED:  '🏅',
+  COURSE_DEADLINE:     '⏰',
+  COURSE_STARTED:      '📚',
+  SYSTEM:              '🔔',
+};
+
+export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [userInfo, setUserInfo] = useState<LoginResponse | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notiOpen, setNotiOpen] = useState(false);
+  const notiRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) { router.replace('/login'); return; }
+    const stored = localStorage.getItem('user');
+    if (stored) setUserInfo(JSON.parse(stored));
+    // 알림 개수 초기 로드
+    getUnreadCount().then(setUnreadCount).catch(() => {});
+    // 30초마다 갱신
+    const timer = setInterval(() => getUnreadCount().then(setUnreadCount).catch(() => {}), 30000);
+    return () => clearInterval(timer);
+  }, [router]);
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notiRef.current && !notiRef.current.contains(e.target as Node)) setNotiOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const openNoti = async () => {
+    if (!notiOpen) {
+      const list = await getNotifications().catch(() => []);
+      setNotifications(list);
+    }
+    setNotiOpen((v) => !v);
+  };
+
+  const handleMarkAllRead = async () => {
+    await markAllAsRead().catch(() => {});
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const handleMarkOne = async (id: number) => {
+    await markAsRead(id).catch(() => {});
+    setNotifications((prev) => prev.map((n) => n.notificationId === id ? { ...n, read: true } : n));
+    setUnreadCount((c) => Math.max(0, c - 1));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    router.replace('/login');
+  };
+
+  return (
+    <div className="min-h-screen text-sm text-[#1a1a1a] bg-[#f5f5f3]">
+      <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-black/[0.06]">
+        <Link href="/dashboard" className="text-base font-bold">
+          <span className="text-[#185FA5] text-lg font-black tracking-tight mr-1">LMS</span> 사내교육시스템
+        </Link>
+        <div className="flex items-center gap-3">
+          {/* 알림 벨 */}
+          <div className="relative" ref={notiRef}>
+            <button onClick={openNoti}
+              className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 알림 드롭다운 */}
+            {notiOpen && (
+              <div className="absolute right-0 top-10 w-80 bg-white border border-black/[0.08] rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06]">
+                  <span className="text-xs font-bold text-gray-700">알림</span>
+                  {unreadCount > 0 && (
+                    <button onClick={handleMarkAllRead}
+                      className="text-[10px] text-[#185FA5] hover:underline font-semibold">
+                      모두 읽음
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-gray-400">알림이 없습니다.</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.notificationId}
+                        onClick={() => !n.read && handleMarkOne(n.notificationId)}
+                        className={`flex items-start gap-3 px-4 py-3 border-b border-black/[0.04] cursor-pointer transition-colors ${n.read ? 'bg-white' : 'bg-blue-50/60 hover:bg-blue-50'}`}>
+                        <span className="text-base shrink-0 mt-0.5">{NOTI_ICON[n.type] ?? '🔔'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs leading-snug ${n.read ? 'text-gray-500' : 'text-gray-800 font-semibold'}`}>
+                            {n.message}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {new Date(n.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {!n.read && <span className="w-2 h-2 bg-[#185FA5] rounded-full shrink-0 mt-1.5" />}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#666] font-medium hidden sm:inline">{userInfo?.name ?? ''}</span>
+            <div className="w-7 h-7 rounded-full bg-[#E6F1FB] flex items-center justify-center text-xs font-bold text-[#185FA5]">
+              {userInfo?.name?.[0] ?? '?'}
+            </div>
+          </div>
+          <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-red-500 border border-black/10 px-2 py-0.5 rounded">
+            로그아웃
+          </button>
+        </div>
+      </header>
+
+      <nav className="flex justify-center gap-1.5 px-5 bg-white border-b border-black/[0.08] overflow-x-auto">
+        {NAV_TABS.map((tab) => {
+          const isActive = pathname === tab.href || (tab.href !== '/dashboard' && pathname.startsWith(tab.href));
+          return (
+            <Link key={tab.href} href={tab.href}
+              className={`px-5 py-3 text-[13px] font-medium rounded-t-lg transition-all border-b-2 -mb-[1px] whitespace-nowrap ${
+                isActive
+                  ? 'bg-[#f5f5f3] text-[#185FA5] font-bold border-b-transparent border-t border-x border-black/[0.08]'
+                  : 'text-[#888] border-b-transparent hover:text-[#185FA5]'
+              }`}>
+              {tab.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <main className="p-4 sm:p-6 max-w-[1200px] mx-auto">
+        {children}
+      </main>
+    </div>
+  );
+}

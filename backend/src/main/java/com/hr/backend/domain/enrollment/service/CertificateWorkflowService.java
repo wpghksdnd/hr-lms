@@ -9,6 +9,8 @@ import com.hr.backend.domain.enrollment.dto.CertificateGenerateResponse;
 import com.hr.backend.domain.enrollment.entity.Certificate;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.CertificateRepository;
+import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
+import com.hr.backend.domain.notification.service.NotificationService;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,8 @@ public class CertificateWorkflowService {
     private final UserRepository userRepository;
     private final CourseRoundRepository courseRoundRepository;
     private final CertificatePdfService certificatePdfService;
+    private final NotificationService notificationService;
+    private final EnrollmentRepository enrollmentRepository;
     private final RestClient restClient = RestClient.create();
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일");
@@ -133,6 +137,13 @@ public class CertificateWorkflowService {
         String storedPath = "/certificates/" + currentYear + "/" + fileName;
         saved.updateFileUrl(storedPath);
         certificateRepository.save(saved);
+
+        // 이수증 발급 알림 발송
+        enrollmentRepository.findAllByUserId(user.getUserId()).stream()
+                .filter(e -> e.getRound().getRoundId().equals(roundId))
+                .findFirst()
+                .ifPresent(e -> notificationService.notifyCertificateIssued(
+                        user, round.getCourse().getTitle(), e.getEnrollmentId()));
 
         return CertificateGenerateResponse.builder()
             .success(true)

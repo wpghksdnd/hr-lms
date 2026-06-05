@@ -75,6 +75,7 @@ public class Course {
         this.targetRole   = targetRole;
         this.durationMin  = durationMin;
         this.thumbnailUrl = thumbnailUrl;
+        this.active       = true;
     }
 
     public void update(String title, String description, String category,
