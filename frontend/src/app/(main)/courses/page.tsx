@@ -35,12 +35,13 @@ export default function CoursesPage() {
     return !query || c.title.includes(query) || c.category.includes(query);
   });
 
-  const handleEnroll = async (courseId: number) => {
-    setEnrollingId(courseId);
+  const handleEnroll = async (course: CourseListItem) => {
+    if (!course.roundId) return;
+    setEnrollingId(course.courseId);
     try {
-      await enrollCourse(courseId);
+      await enrollCourse(course.roundId);
       setCourses((prev) =>
-        prev.map((c) => c.courseId === courseId ? { ...c, enrollmentStatus: 'IN_PROGRESS' } : c)
+        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'NOT_STARTED' } : c)
       );
     } catch (err: unknown) {
       alert(getApiError(err) || '수강 신청에 실패했습니다.');
@@ -148,7 +149,7 @@ export default function CoursesPage() {
                       )}
                     </>
                   ) : c.roundId ? (
-                    <button onClick={() => handleEnroll(c.courseId)} disabled={enrollingId === c.courseId}
+                    <button onClick={() => handleEnroll(c)} disabled={enrollingId === c.courseId}
                       className="text-xs px-3 py-2 font-semibold rounded-lg bg-[#185FA5] text-white hover:bg-[#144f8b] disabled:bg-gray-300 transition-colors">
                       {enrollingId === c.courseId ? '신청 중...' : '수강신청'}
                     </button>

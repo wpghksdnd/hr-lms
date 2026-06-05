@@ -11,6 +11,6 @@ export async function getCourseDetail(courseId: number): Promise<CourseDetailRes
   return res.data.data;
 }
 
-export async function enrollCourse(courseId: number): Promise<void> {
-  await client.post(`/api/user/courses/${courseId}/enroll`);
+export async function enrollCourse(roundId: number): Promise<void> {
+  await client.post(`/api/user/enrollments`, null, { params: { roundId } });
 }
