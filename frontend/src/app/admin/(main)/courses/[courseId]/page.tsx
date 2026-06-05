@@ -209,10 +209,9 @@ function QuizExamEditor({
                       <div className="text-xs font-bold text-gray-700 mb-1">Q{i + 1}. {q.questionText}</div>
                       <div className="flex flex-wrap gap-1.5">
                         {(q.choices ?? []).map((c, ci) => (
-                          <span key={ci} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            c.correct ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                          }`}>
-                            {c.choiceText || `선택지${ci+1}`}
+                          <span key={ci} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${c.correct ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                            {c.choiceText || `선택지${ci + 1}`}
                             {c.correct && ' ✓'}
                           </span>
                         ))}
@@ -400,9 +399,8 @@ function LectureAccordion({
           <div className="flex gap-1 mb-4">
             {(['videos', 'quiz'] as const).map((t) => (
               <button key={t} onClick={() => setActiveTab(t)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                  activeTab === t ? 'bg-[#4A90D9] text-white' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
-                }`}>
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${activeTab === t ? 'bg-[#4A90D9] text-white' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
+                  }`}>
                 {t === 'videos' ? '📹 영상 목록' : '📝 단원 퀴즈'}
               </button>
             ))}
@@ -502,7 +500,7 @@ function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
     document.body.appendChild(div);
 
     const cleanup = (duration?: number) => {
-      try { document.body.removeChild(div); } catch {}
+      try { document.body.removeChild(div); } catch { }
       if (duration != null && duration > 0) setVForm({ ...vForm, durationSec: Math.ceil(duration) });
       setDetecting(false);
     };
@@ -572,7 +570,9 @@ function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
           )}
         </div>
         {isYoutube && (
-          <p className="text-[10px] text-blue-500">YouTube URL 감지됨 — "자동 감지" 버튼으로 영상 길이를 불러올 수 있습니다.</p>
+          <p className="text-[10px] text-blue-500">
+            YouTube URL 감지됨 — &quot;자동 감지&quot; 버튼으로 영상 길이를 불러올 수 있습니다.
+          </p>
         )}
       </div>
       <div className="flex gap-2">
@@ -653,13 +653,12 @@ export default function CourseDetailPage() {
           <button key={tab} onClick={() => {
             setActiveTab(tab);
             if (tab === 'results' && attempts.length === 0) {
-              getExamAttempts(courseId).then(setAttempts).catch(() => {});
-              getExamStats(courseId).then(setExamStats).catch(() => {});
+              getExamAttempts(courseId).then(setAttempts).catch(() => { });
+              getExamStats(courseId).then(setExamStats).catch(() => { });
             }
           }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
-              activeTab === tab ? 'bg-[#1a1a2e] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
-            }`}>
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${activeTab === tab ? 'bg-[#1a1a2e] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}>
             {label}
           </button>
         ))}
