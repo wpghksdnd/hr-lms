@@ -56,6 +56,7 @@ export interface CourseListItem {
   startDate: string | null;
   endDate: string | null;
   enrollmentStatus: string | null; // NOT_ENROLLED | NOT_STARTED | IN_PROGRESS | DONE
+  enrollmentId: number | null;
 }
 
 export interface CourseVideoItem {

@@ -23,4 +23,5 @@ public class CourseListItemResponse {
     
     // 신청 상태
     private String enrollmentStatus; // NOT_STARTED, IN_PROGRESS, DONE, NOT_ENROLLED
+    private Long enrollmentId;       // 수강 취소 등에 사용, 미신청 시 null
 }

@@ -67,7 +67,8 @@ public class CourseUserService {
                         .map(round -> {
                             Enrollment enrollment = enrollmentMap.get(course.getCourseId());
                             String status = enrollment == null ? "NOT_ENROLLED" : enrollment.getStatus().name();
-                            
+                            Long enrollmentId = enrollment == null ? null : enrollment.getEnrollmentId();
+
                             return CourseListItemResponse.builder()
                                     .courseId(course.getCourseId())
                                     .title(course.getTitle())
@@ -80,6 +81,7 @@ public class CourseUserService {
                                     .startDate(round.getStartDate())
                                     .endDate(round.getEndDate())
                                     .enrollmentStatus(status)
+                                    .enrollmentId(enrollmentId)
                                     .build();
                         })
                 )

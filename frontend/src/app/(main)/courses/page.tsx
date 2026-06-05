@@ -51,20 +51,13 @@ export default function CoursesPage() {
   };
 
   const handleCancel = async (course: CourseListItem) => {
-    if (!course.roundId) return;
+    if (!course.enrollmentId) return;
     if (!confirm(`"${course.title}" 수강을 취소하시겠습니까?`)) return;
     setCancellingId(course.courseId);
     try {
-      // enrollmentId를 roundId 기반으로 찾아야 하므로 직접 API 호출
-      // 백엔드는 cancel에 enrollmentId 필요 → courses API에서 enrollmentId를 내려주지 않으므로
-      // getCourseDetail로 enrollmentId 조회 후 취소
-      const { getCourseDetail } = await import('@/api/courses');
-      const detail = await getCourseDetail(course.courseId);
-      const enrollmentId = detail.myEnrollmentStatus?.enrollmentId;
-      if (!enrollmentId) throw new Error('수강 정보를 찾을 수 없습니다.');
-      await cancelEnrollment(enrollmentId);
+      await cancelEnrollment(course.enrollmentId);
       setCourses((prev) =>
-        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'NOT_ENROLLED' } : c)
+        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'NOT_ENROLLED', enrollmentId: null } : c)
       );
     } catch (err: unknown) {
       alert(getApiError(err) || '수강 취소에 실패했습니다.');
