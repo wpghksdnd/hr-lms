@@ -41,7 +41,7 @@ export default function CoursesPage() {
     try {
       await enrollCourse(course.roundId);
       setCourses((prev) =>
-        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'NOT_STARTED' } : c)
+        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'IN_PROGRESS' } : c)
       );
     } catch (err: unknown) {
       alert(getApiError(err) || '수강 신청에 실패했습니다.');
