@@ -37,10 +37,6 @@ export async function getCourseVideos(courseId: number): Promise<VideoListRespon
   return res.data.data;
 }
 
-export async function recordVideoWatch(videoId: number, watchedSec: number): Promise<void> {
-  await client.post(`/api/user/videos/${videoId}/watch`, { watchedSec });
-}
-
 export async function startVideoWatch(videoId: number): Promise<void> {
   await client.post(`/api/user/videos/${videoId}/watch/start`);
 }

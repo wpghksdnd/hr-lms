@@ -10,7 +10,7 @@ import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
 import com.hr.backend.domain.enrollment.service.EnrollmentCalendarService;
 import com.hr.backend.domain.enrollment.service.EnrollmentService;
 import com.hr.backend.domain.enrollment.service.FeedbackService;
-import com.hr.backend.domain.user.repository.UserRepository;
+import com.hr.backend.employee.util.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -29,25 +29,18 @@ public class EnrollmentUserController {
     private final EnrollmentCalendarService enrollmentCalendarService;
     private final FeedbackService           feedbackService;
     private final EnrollmentRepository      enrollmentRepository;
-    private final UserRepository            userRepository;
+    private final CurrentUserProvider       currentUserProvider;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    /**
-     * 수강 신청 — JWT에서 userId 추출 (타인 명의 신청 방지)
-     */
     @PostMapping
     public ResponseEntity<EnrollmentResponse> applyEnrollment(@RequestParam Long roundId) {
-        Long userId = getLoginUserId();
-        return ResponseEntity.ok(enrollmentService.applyEnrollment(userId, roundId));
+        return ResponseEntity.ok(enrollmentService.applyEnrollment(currentUserProvider.getCurrentUserId(), roundId));
     }
-    
-        /**
-     * 수강신청 취소 (본인)
-     */
+
     @DeleteMapping("/cancel/{enrollmentId}")
     public ResponseEntity<Void> cancelEnrollment(@PathVariable Long enrollmentId) {
-        Long loginUserId = getLoginUserId();
+        Long loginUserId = currentUserProvider.getCurrentUserId();
         Enrollment enrollment = findEnrollmentWithRound(enrollmentId);
         if (!enrollment.getUser().getUserId().equals(loginUserId) && !isAdmin()) {
             throw new IllegalArgumentException("본인 또는 관리자만 취소할 수 있습니다.");
@@ -56,105 +49,84 @@ public class EnrollmentUserController {
         return ResponseEntity.noContent().build();
     }
 
-    // 본인 수강 이력 조회 (JWT 기준)
     @GetMapping("/history")
     public ResponseEntity<List<EnrollmentResponse>> enrollmentHistory() {
-        return ResponseEntity.ok(enrollmentService.getHistoryByUser(getLoginUserId()));
+        return ResponseEntity.ok(enrollmentService.getHistoryByUser(currentUserProvider.getCurrentUserId()));
     }
 
-    // 본인 전체 수강 내역 조회 (JWT 기준)
     @GetMapping("/all")
     public ResponseEntity<List<EnrollmentResponse>> getALLEnrollmentsByUser() {
-        return ResponseEntity.ok(enrollmentService.getByUser(getLoginUserId()));
+        return ResponseEntity.ok(enrollmentService.getByUser(currentUserProvider.getCurrentUserId()));
     }
 
-    // 본인 수강중인 교육 조회 (JWT 기준)
     @GetMapping("/ongoing")
     public ResponseEntity<List<EnrollmentResponse>> getOngoingEnrollments() {
-        return ResponseEntity.ok(enrollmentService.getOngoingEnrollments(getLoginUserId()));
+        return ResponseEntity.ok(enrollmentService.getOngoingEnrollments(currentUserProvider.getCurrentUserId()));
     }
 
-    // 하위호환용 경로 (기존 클라이언트 유지)
     @GetMapping("/history/{userId}")
     public ResponseEntity<List<EnrollmentResponse>> enrollmentHistoryLegacy(@PathVariable Long userId) {
-        if (!isAdmin() && !getLoginUserId().equals(userId)) {
+        if (!isAdmin() && !currentUserProvider.getCurrentUserId().equals(userId))
             throw new IllegalArgumentException("본인 수강 이력만 조회할 수 있습니다.");
-        }
         return ResponseEntity.ok(enrollmentService.getHistoryByUser(userId));
     }
 
     @GetMapping("/all/{userId}")
     public ResponseEntity<List<EnrollmentResponse>> getALLEnrollmentsByUserLegacy(@PathVariable Long userId) {
-        if (!isAdmin() && !getLoginUserId().equals(userId)) {
+        if (!isAdmin() && !currentUserProvider.getCurrentUserId().equals(userId))
             throw new IllegalArgumentException("본인 전체 수강 내역만 조회할 수 있습니다.");
-        }
         return ResponseEntity.ok(enrollmentService.getByUser(userId));
     }
 
     @GetMapping("/ongoing/{userId}")
     public ResponseEntity<List<EnrollmentResponse>> getOngoingEnrollmentsLegacy(@PathVariable Long userId) {
-        if (!isAdmin() && !getLoginUserId().equals(userId)) {
+        if (!isAdmin() && !currentUserProvider.getCurrentUserId().equals(userId))
             throw new IllegalArgumentException("본인 수강중인 교육만 조회할 수 있습니다.");
-        }
         return ResponseEntity.ok(enrollmentService.getOngoingEnrollments(userId));
     }
 
-    // 수강 상세 조회
     @GetMapping("/{enrollmentId}")
     public ResponseEntity<EnrollmentResponse> getEnrollmentDetails(@PathVariable Long enrollmentId) {
-        Long loginUserId = getLoginUserId();
+        Long loginUserId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(enrollmentService.getEnrollmentByIdForActor(enrollmentId, loginUserId, isAdmin()));
     }
 
-    // 수강 진행 관리 (진행률 업데이트)
     @PutMapping("/{enrollmentId}/progress")
-    public ResponseEntity<EnrollmentResponse> updateProgress(
-            @PathVariable Long enrollmentId,
-            @RequestParam int progress) {
-        Long loginUserId = getLoginUserId();
+    public ResponseEntity<EnrollmentResponse> updateProgress(@PathVariable Long enrollmentId, @RequestParam int progress) {
+        Long loginUserId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(enrollmentService.updateProgressForActor(enrollmentId, progress, loginUserId, isAdmin()));
     }
 
-    // 수강 완료 처리
     @PutMapping("/{enrollmentId}/complete")
     public ResponseEntity<EnrollmentResponse> completeEnrollment(@PathVariable Long enrollmentId) {
-        Long loginUserId = getLoginUserId();
+        Long loginUserId = currentUserProvider.getCurrentUserId();
         return ResponseEntity.ok(enrollmentService.completeEnrollmentForActor(enrollmentId, loginUserId, isAdmin()));
     }
 
-    // 수강 피드백 제출 (수강 완료 후에만 가능, 기존 제출 시 수정 처리)
     @PostMapping("/{enrollmentId}/feedback")
-    public ResponseEntity<FeedbackResponse> submitEnrollmentFeedback(
-            @PathVariable Long enrollmentId,
-            @RequestBody FeedbackRequest request) {
-        String employeeNo = getLoginEmployeeNo();
+    public ResponseEntity<FeedbackResponse> submitEnrollmentFeedback(@PathVariable Long enrollmentId, @RequestBody FeedbackRequest request) {
+        String employeeNo = currentUserProvider.getCurrentUser().getEmployeeNo();
         return ResponseEntity.ok(feedbackService.submitFeedback(enrollmentId, employeeNo, request));
     }
 
-    // 피드백 조회
     @GetMapping("/{enrollmentId}/feedback")
     public ResponseEntity<FeedbackResponse> getEnrollmentFeedback(@PathVariable Long enrollmentId) {
         return ResponseEntity.ok(feedbackService.getFeedback(enrollmentId));
     }
 
-    // 수강 캘린더 (전체)
     @GetMapping("/schedule")
     public ResponseEntity<List<EnrollmentCalendarResponse>> getEnrollmentSchedule() {
-        return ResponseEntity.ok(enrollmentCalendarService.getAllRoundsWithMyStatus(getLoginUserId()));
+        return ResponseEntity.ok(enrollmentCalendarService.getAllRoundsWithMyStatus(currentUserProvider.getCurrentUserId()));
     }
 
-    // 수강 캘린더 상세
     @GetMapping("/{enrollmentId}/schedule/detail")
-    public ResponseEntity<EnrollmentScheduleResponse> getEnrollmentScheduleDetail(
-            @PathVariable Long enrollmentId) {
-        Long loginUserId = getLoginUserId();
+    public ResponseEntity<EnrollmentScheduleResponse> getEnrollmentScheduleDetail(@PathVariable Long enrollmentId) {
+        Long loginUserId = currentUserProvider.getCurrentUserId();
         enrollmentService.validateEnrollmentAccess(enrollmentId, loginUserId, isAdmin());
         Enrollment enrollment = findEnrollmentWithRound(enrollmentId);
-
         Integer durationMin = enrollment.getRound().getCourse().getDurationMin();
         int hours = (durationMin == null || durationMin <= 0) ? 0 : durationMin / 60;
-
-        EnrollmentScheduleResponse response = EnrollmentScheduleResponse.builder()
+        return ResponseEntity.ok(EnrollmentScheduleResponse.builder()
                 .enrollmentId(enrollment.getEnrollmentId())
                 .userId(enrollment.getUser().getUserId())
                 .userName(enrollment.getUser().getName())
@@ -168,29 +140,9 @@ public class EnrollmentUserController {
                 .trainingHours(hours)
                 .status(enrollment.getStatus().name())
                 .progress(enrollment.getProgress())
-                .build();
-
-        return ResponseEntity.ok(response);
+                .build());
     }
 
-    // ──────────────────────────────────────────────────────────
-    // private
-    // ──────────────────────────────────────────────────────────
-
-    /** JWT 토큰에서 인증된 사용자의 employeeNo 추출 */
-    private String getLoginEmployeeNo() {
-        return (String) SecurityContextHolder.getContext()
-                .getAuthentication().getPrincipal();
-    }
-
-    /** JWT 토큰에서 인증된 사용자의 userId 추출 */
-    private Long getLoginUserId() {
-        return userRepository.findByEmployeeNo(getLoginEmployeeNo())
-                .orElseThrow(() -> new IllegalStateException("인증된 사용자를 찾을 수 없습니다."))
-                .getUserId();
-    }
-
-    /** 관리자 여부 확인 */
     private boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getAuthorities().stream()
