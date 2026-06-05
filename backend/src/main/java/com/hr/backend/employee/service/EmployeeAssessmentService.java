@@ -21,7 +21,6 @@ import java.util.Map;
 public class EmployeeAssessmentService {
     private final QuizRepository quizRepository;
     private final ExamRepository examRepository;
-    // private final ChoiceRepository choiceRepository;
     private final AttemptRepository attemptRepository;
     private final CurrentUserProvider currentUserProvider;
     private final EmployeeLearningCompletionService completionService;
@@ -64,17 +63,6 @@ public class EmployeeAssessmentService {
                 .map(a -> toAttemptResponse(a.getQuiz()!=null?"QUIZ":"EXAM", a.getQuiz()!=null?a.getQuiz().getQuizId():a.getExam().getExamId(), a))
                 .toList();
     }
-
-    // private int calculateScore(List<Question> questions, Map<Long, Long> answers) {
-    //     int score = 0;
-    //     for (Question q : questions) {
-    //         Long selectedChoiceId = answers.get(q.getQuestionId());
-    //         if (selectedChoiceId == null) continue;
-    //         boolean correct = choiceRepository.findById(selectedChoiceId).map(c -> c.isCorrect() && c.getQuestion().getQuestionId().equals(q.getQuestionId())).orElse(false);
-    //         if (correct) score += q.getScore();
-    //     }
-    //     return Math.min(score, 100);
-    // }
 
     private int calculateScore(List<Question> questions, Map<Long, Long> answers) {
         int score = 0;

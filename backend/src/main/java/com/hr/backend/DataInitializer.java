@@ -61,7 +61,7 @@ public class DataInitializer implements ApplicationRunner {
                     .encoder(passwordEncoder)
                     .build();
             userRepository.save(admin);
-            log.info("[DataInitializer] 관리자 계정 생성 완료 (ADMIN001 / ADMIN001)");
+            log.info("[DataInitializer] 관리자 계정 생성 완료");
         }
 
         // 일반 유저 테스트 계정
@@ -81,7 +81,7 @@ public class DataInitializer implements ApplicationRunner {
                     .encoder(passwordEncoder)
                     .build();
             userRepository.save(user);
-            log.info("[DataInitializer] 일반 유저 계정 생성 완료 (EMP001 / EMP001)");
+            log.info("[DataInitializer] 일반 유저 테스트 계정 생성 완료");
         }
     }
 }

@@ -6,7 +6,6 @@ import com.hr.backend.domain.course.repository.LectureProgressRepository;
 import com.hr.backend.domain.course.repository.LectureRepository;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
-import com.hr.backend.domain.enrollment.service.CertificateWorkflowService;
 import com.hr.backend.domain.enrollment.service.EnrollmentService;
 import com.hr.backend.domain.quiz.dto.AttemptRequest;
 import com.hr.backend.domain.quiz.dto.AttemptResponse;
@@ -45,7 +44,6 @@ public class AttemptService {
     private final LectureRepository         lectureRepository;
     private final LectureProgressRepository lectureProgressRepository;
     private final EnrollmentRepository      enrollmentRepository;
-    private final CertificateWorkflowService certificateWorkflowService;
     private final EnrollmentService         enrollmentService;
 
     // ──────────────────────────────────────────────────────────
@@ -206,10 +204,8 @@ public class AttemptService {
                         && e.getStatus() == Enrollment.Status.IN_PROGRESS)
                 .forEach(enrollment -> {
                     try {
+                        // completeEnrollment 내부에서 triggerCompletionWorkflow 호출됨 — 중복 호출 제거
                         enrollmentService.completeEnrollment(enrollment.getEnrollmentId());
-                        Enrollment completed = enrollmentRepository.findById(enrollment.getEnrollmentId())
-                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 내역입니다."));
-                        certificateWorkflowService.triggerCompletionWorkflow(completed);
                     } catch (IllegalArgumentException ex) {
                         // 시험은 통과했지만 나머지 완료 조건(진도/퀴즈)을 충족하지 못한 경우
                         log.debug("수강 완료 조건 미충족으로 DONE 처리 생략 - enrollmentId={} reason={}",

@@ -52,14 +52,16 @@ public class EnrollmentService {
 
     
     /**
-     * 수강신청 취소 (상태를 NOT_STARTED로 변경)
+     * 수강신청 취소 — 수강 레코드 삭제 (이수 완료 강좌는 취소 불가)
      */
     @Transactional
     public void cancelEnrollment(Long enrollmentId) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 내역입니다."));
-        enrollment.changeStatus(Enrollment.Status.NOT_STARTED);
-        enrollment.updateProgress(0);
+        if (enrollment.getStatus() == Enrollment.Status.DONE) {
+            throw new IllegalStateException("이수 완료된 강좌는 취소할 수 없습니다.");
+        }
+        enrollmentRepository.delete(enrollment);
     }
     /**
      * 필터 조건에 따른 이수 현황 조회

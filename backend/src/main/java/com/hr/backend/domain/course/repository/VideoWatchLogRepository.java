@@ -22,4 +22,10 @@ public interface VideoWatchLogRepository extends JpaRepository<VideoWatchLog, Lo
 
     @Query("SELECT w FROM VideoWatchLog w WHERE w.user.userId = :userId AND w.video.lecture.course.courseId = :courseId")
     List<VideoWatchLog> findByUserIdAndCourseId(@Param("userId") Long userId, @Param("courseId") Long courseId);
+
+    /** 특정 강의 내 완료된 videoId 목록 — N+1 방지용 배치 조회 */
+    @Query("SELECT w.video.videoId FROM VideoWatchLog w " +
+           "WHERE w.user.userId = :userId AND w.video.lecture.lectureId = :lectureId AND w.completed = true")
+    List<Long> findCompletedVideoIdsByUserAndLecture(@Param("userId") Long userId,
+                                                     @Param("lectureId") Long lectureId);
 }

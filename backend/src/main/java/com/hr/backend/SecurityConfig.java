@@ -44,17 +44,13 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/health").permitAll()
-                .requestMatchers(HttpMethod.GET,
-                        "/admin-test.html",
-                        "/admin2-test.html",
-                        "/user-test.html").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // CORS preflight
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/certificate/generate", "/api/certificate/fail").permitAll()
+                // /api/certificate/fail 은 n8n 내부 호출용 — 컨트롤러에서 X-Internal-Token 검증
+                .requestMatchers(HttpMethod.POST, "/api/certificate/fail").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/user/courses").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/auth/password").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // /api/certificate/** 는 anyRequest().authenticated() 로 처리 (일반 유저 접근 허용)
                 .anyRequest().authenticated()
             )
             .addFilterBefore(new JwtFilter(jwtProvider),

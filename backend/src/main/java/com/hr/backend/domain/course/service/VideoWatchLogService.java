@@ -8,6 +8,8 @@ import com.hr.backend.domain.course.repository.CourseVideoRepository;
 import com.hr.backend.domain.course.repository.LectureProgressRepository;
 import com.hr.backend.domain.course.repository.LectureRepository;
 import com.hr.backend.domain.course.repository.VideoWatchLogRepository;
+import com.hr.backend.domain.enrollment.entity.Enrollment;
+import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class VideoWatchLogService {
     private final CourseVideoRepository     courseVideoRepository;
     private final LectureRepository         lectureRepository;
     private final UserRepository            userRepository;
+    private final EnrollmentRepository      enrollmentRepository;
 
     // ──────────────────────────────────────────────────────────
     // 영상 시청 시작
@@ -132,10 +135,28 @@ public class VideoWatchLogService {
             if (!progress.isCompleted()) {
                 progress.complete();
                 lectureProgressRepository.save(progress);
+                recalculateEnrollmentProgress(user, lecture);
                 return true;
             }
         }
         return false;
+    }
+
+    /** 강의 완료 후 수강 진행률 재계산 */
+    private void recalculateEnrollmentProgress(User user, Lecture lecture) {
+        Long courseId = lecture.getCourse().getCourseId();
+        int total = lecture.getCourse().getLectures().size();
+        if (total == 0) return;
+
+        long completed = lectureProgressRepository
+                .countByUser_UserIdAndLecture_Course_CourseIdAndCompletedTrue(user.getUserId(), courseId);
+        int progress = Math.min(100, (int) ((completed * 100) / total));
+
+        enrollmentRepository.findAllByUserId(user.getUserId()).stream()
+                .filter(e -> e.getRound().getCourse().getCourseId().equals(courseId)
+                        && e.getStatus() == Enrollment.Status.IN_PROGRESS)
+                .findFirst()
+                .ifPresent(e -> e.updateProgress(progress));
     }
 
     private User findUser(Long userId) {

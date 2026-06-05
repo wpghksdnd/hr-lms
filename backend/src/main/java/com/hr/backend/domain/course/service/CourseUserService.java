@@ -119,24 +119,23 @@ public class CourseUserService {
     }
 
     /**
-     * 강의별 시청률 및 완료 여부 조회
+     * 강의별 시청률 및 완료 여부 조회 — 배치 쿼리로 N+1 방지
      */
-        private LectureWithProgressResponse buildLectureWithProgress(Long userId, Lecture lecture) {
-        // 강의 내 영상 개수
+    private LectureWithProgressResponse buildLectureWithProgress(Long userId, Lecture lecture) {
         int videoCount = lecture.getVideos().size();
-        
-        // 시청한 영상 개수 (예: video_watch_logs에서 완료 여부 체크)
-        int completedCount = (int) lecture.getVideos().stream()
-                .filter(video -> isVideoCompleted(userId, video.getVideoId()))
-                .count();
-        
+
+        // 강의 내 완료된 videoId를 한 번의 쿼리로 조회
+        List<Long> completedVideoIds = videoWatchLogRepository
+                .findCompletedVideoIdsByUserAndLecture(userId, lecture.getLectureId());
+        int completedCount = completedVideoIds.size();
+
         double watchPercentage = videoCount > 0 ? (completedCount * 100.0 / videoCount) : 0.0;
-        
-        // 강의 완료 여부
-        boolean isCompleted = lectureProgressRepository.findByUser_UserIdAndLecture_LectureId(userId, lecture.getLectureId())
+
+        boolean isCompleted = lectureProgressRepository
+                .findByUser_UserIdAndLecture_LectureId(userId, lecture.getLectureId())
                 .map(lp -> lp.isCompleted())
                 .orElse(false);
-        
+
         return LectureWithProgressResponse.builder()
                 .lectureId(lecture.getLectureId())
                 .title(lecture.getTitle())
@@ -147,15 +146,6 @@ public class CourseUserService {
                 .watchPercentage(Math.round(watchPercentage * 10.0) / 10.0)
                 .isCompleted(isCompleted)
                 .build();
-    }
-
-    /**
-     * 특정 영상 시청 완료 여부 확인 (예시)
-     */
-    private boolean isVideoCompleted(Long userId, Long videoId) {
-        return videoWatchLogRepository.findByUser_UserIdAndVideo_VideoId(userId, videoId)
-                .map(w -> w.isCompleted())
-                .orElse(false);
     }
 
     private CourseDetailResponse.QuizSummary buildQuizSummary(Long userId, List<Lecture> lectures) {
