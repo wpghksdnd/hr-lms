@@ -65,7 +65,10 @@ public class VideoWatchLog {
     public void endSession(int watchedSec) {
         this.sessionEndedAt = LocalDateTime.now();
         this.watchedSec     = Math.max(this.watchedSec, watchedSec);
-        if (this.watchedSec >= video.getDurationSec()) {
+        int duration = video.getDurationSec();
+        // durationSec가 0이면 완료 처리하지 않음 (미설정 영상 방어)
+        // 영상의 80% 이상 시청 시 완료로 처리
+        if (duration > 0 && this.watchedSec >= duration * 0.8) {
             this.completed = true;
         }
     }
