@@ -10,6 +10,8 @@ import com.hr.backend.domain.course.repository.LectureRepository;
 import com.hr.backend.domain.course.repository.VideoWatchLogRepository;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
+import com.hr.backend.domain.enrollment.service.EnrollmentService;
+import com.hr.backend.domain.quiz.repository.QuizRepository;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,8 @@ public class VideoWatchLogService {
     private final LectureRepository         lectureRepository;
     private final UserRepository            userRepository;
     private final EnrollmentRepository      enrollmentRepository;
+    private final EnrollmentService         enrollmentService;
+    private final QuizRepository            quizRepository;
 
     // ──────────────────────────────────────────────────────────
     // 영상 시청 시작
@@ -126,20 +130,25 @@ public class VideoWatchLogService {
                         .orElse(false)
         );
 
-        if (allCompleted) {
-            Lecture lecture = findLecture(lectureId);
-            LectureProgress progress = lectureProgressRepository
-                    .findByUser_UserIdAndLecture_LectureId(user.getUserId(), lectureId)
-                    .orElseGet(() -> LectureProgress.builder().user(user).lecture(lecture).build());
-
-            if (!progress.isCompleted()) {
-                progress.complete();
-                lectureProgressRepository.save(progress);
-                recalculateEnrollmentProgress(user, lecture);
-                return true;
-            }
+        if (!allCompleted) {
+            return false;
         }
-        return false;
+
+        Lecture lecture = findLecture(lectureId);
+        if (quizRepository.existsByLecture_LectureId(lectureId)) {
+            return true;
+        }
+
+        LectureProgress progress = lectureProgressRepository
+                .findByUser_UserIdAndLecture_LectureId(user.getUserId(), lectureId)
+                .orElseGet(() -> LectureProgress.builder().user(user).lecture(lecture).build());
+
+        if (!progress.isCompleted()) {
+            progress.complete();
+            lectureProgressRepository.save(progress);
+            recalculateEnrollmentProgress(user, lecture);
+        }
+        return true;
     }
 
     /** 강의 완료 후 수강 진행률 재계산 */
@@ -153,10 +162,18 @@ public class VideoWatchLogService {
         int progress = Math.min(100, (int) ((completed * 100) / total));
 
         enrollmentRepository.findAllByUserId(user.getUserId()).stream()
-                .filter(e -> e.getRound().getCourse().getCourseId().equals(courseId)
-                        && e.getStatus() == Enrollment.Status.IN_PROGRESS)
+                .filter(e -> e.getRound().getCourse().getCourseId().equals(courseId))
                 .findFirst()
-                .ifPresent(e -> e.updateProgress(progress));
+                .ifPresent(e -> {
+                    e.updateProgress(progress);
+                    if (progress >= 100 && e.getStatus() != Enrollment.Status.DONE) {
+                        try {
+                            enrollmentService.completeEnrollment(e.getEnrollmentId());
+                        } catch (IllegalArgumentException ignored) {
+                            // 시험 또는 퀴즈 조건이 남아 있으면 DONE 처리는 이후 응시 완료 시점에 진행한다.
+                        }
+                    }
+                });
     }
 
     private User findUser(Long userId) {

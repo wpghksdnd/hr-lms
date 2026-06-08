@@ -588,8 +588,18 @@ export default function LearningPage() {
   const allLecturesCompleted = (detail?.currentProgress ?? 0) >= 100 || detail?.currentStatus === 'DONE';
   const quizCompleted = detail?.quiz ? Boolean(detail.quiz.completed) : true;
   const learningCompleted = allLecturesCompleted || quizCompleted;
-  const examPassed = Boolean(detail?.exam?.completed);
-  const canTakeExam = allVideosCompleted && learningCompleted && !examPassed;
+  const hasExam = Boolean(detail?.exam);
+  const examPassed = detail?.exam ? Boolean(detail.exam.completed) : true;
+  const canTakeExam = hasExam && allVideosCompleted && learningCompleted && !examPassed;
+  const completionGuideText = hasExam
+    ? examPassed
+      ? '최종 시험에 합격했습니다.'
+      : quizCompleted
+        ? '최종 시험에 도전해 이수를 완료하세요.'
+        : '퀴즈 합격 후 최종 시험에 응시할 수 있습니다.'
+    : quizCompleted
+      ? '수강 완료 조건을 충족했습니다.'
+      : '퀴즈 합격 후 이수를 완료할 수 있습니다.';
   const retryQuizVideo = quizRetryLectureId
     ? sortedVideos.find((video) => video.lectureId === quizRetryLectureId)
     : null;
@@ -1113,15 +1123,11 @@ export default function LearningPage() {
                       <div>
                         <div className="text-sm font-bold text-emerald-700">모든 강의를 완료했습니다!</div>
                         <div className="text-[11px] text-emerald-600">
-                          {examPassed
-                            ? '최종 시험에 합격했습니다.'
-                            : quizCompleted
-                              ? '최종 시험에 도전해 이수를 완료하세요.'
-                              : '퀴즈 합격 후 최종 시험에 응시할 수 있습니다.'}
+                          {completionGuideText}
                         </div>
                       </div>
                     </div>
-                    {canTakeExam ? (
+                    {hasExam && (canTakeExam ? (
                       <button
                         type="button"
                         onClick={handleOpenExam}
@@ -1138,7 +1144,7 @@ export default function LearningPage() {
                       >
                         {examPassed ? '시험 합격 완료' : '시험 응시하기'}
                       </button>
-                    )}
+                    ))}
                   </div>
                   {/* 피드백 — 수강 완료(DONE) 상태일 때만 표시 */}
                   {detail?.currentStatus === 'DONE' && (
