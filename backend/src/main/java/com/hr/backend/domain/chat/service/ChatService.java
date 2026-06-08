@@ -34,6 +34,9 @@ public class ChatService {
     @Value("${ai.server.url:http://localhost:5000}")
     private String aiServerUrl;
 
+    @Value("${ai.internal-token:}")
+    private String aiInternalToken;
+
     /**
      * Flask 챗봇에 메시지를 전달하고 응답을 받는다.
      * 수강 현황·이수 정보 등 개인화 데이터를 컨텍스트로 함께 전송한다.
@@ -49,6 +52,9 @@ public class ChatService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        if (aiInternalToken != null && !aiInternalToken.isBlank()) {
+            headers.set("X-Internal-Token", aiInternalToken);
+        }
 
         Map<String, String> body = new HashMap<>();
         body.put("user_id", employeeNo);

@@ -1,11 +1,12 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  getAdminCourses, createCourse, updateCourse, deleteCourse,
+  getAdminCoursesPaged, createCourse, updateCourse, deleteCourse,
   getCourseRounds, createCourseRound, updateCourseRound, deleteCourseRound,
   AdminCourseResponse, AdminCourseRequest, CourseRoundResponse, CourseRoundRequest,
 } from '@/api/adminApi';
+import Pagination from '@/components/admin/Pagination';
 
 const TARGET_ROLE_LABELS: Record<number, string> = { 0: '전체', 1: '현장직', 2: '사무직' };
 const CATEGORY_OPTIONS = ['법정의무교육', '직무교육', '안전교육', '리더십교육', '기타'];
@@ -245,14 +246,27 @@ export default function CoursesAdminPage() {
   const [saving, setSaving] = useState(false);
   const [searchKw, setSearchKw] = useState('');
   const [roundCourse, setRoundCourse] = useState<AdminCourseResponse | null>(null);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 10;
 
-  useEffect(() => {
-    getAdminCourses()
-      .then(setCourses)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const load = useCallback(async (p = 0) => {
+    setLoading(true);
+    try {
+      const result = await getAdminCoursesPaged(p, PAGE_SIZE);
+      setCourses(result.content);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
+    } catch { /* ignore */ }
+    setLoading(false);
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
+  const handlePageChange = (p: number) => { setPage(p); load(p); };
+
+  // 현재 페이지 데이터 내 클라이언트 검색
   const filtered = courses.filter((c) =>
     !searchKw || c.title.toLowerCase().includes(searchKw.toLowerCase()) || c.category.includes(searchKw)
   );
@@ -282,7 +296,7 @@ export default function CoursesAdminPage() {
     if (!confirm('강의를 삭제하시겠습니까?')) return;
     try {
       await deleteCourse(id);
-      setCourses((prev) => prev.filter((c) => c.courseId !== id));
+      load(page);
     } catch { alert('삭제 실패'); }
   };
 
@@ -294,11 +308,12 @@ export default function CoursesAdminPage() {
     try {
       const payload = { ...form, thumbnailUrl: form.thumbnailUrl || undefined };
       if (editTarget) {
-        const updated = await updateCourse(editTarget.courseId, payload);
-        setCourses((prev) => prev.map((c) => c.courseId === updated.courseId ? updated : c));
+        await updateCourse(editTarget.courseId, payload);
+        load(page);
       } else {
-        const created = await createCourse(payload);
-        setCourses((prev) => [created, ...prev]);
+        await createCourse(payload);
+        setPage(0);
+        load(0);
       }
       setModalOpen(false);
     } catch (err: unknown) {
@@ -403,6 +418,15 @@ export default function CoursesAdminPage() {
             </table>
           </div>
         )}
+        <div className="px-4 border-t border-gray-50">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            size={PAGE_SIZE}
+            onChange={handlePageChange}
+          />
+        </div>
       </div>
 
       {/* Course edit/create Modal */}

@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/health").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // CORS preflight
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                 // /api/certificate/fail 은 n8n 내부 호출용 — 컨트롤러에서 X-Internal-Token 검증
                 .requestMatchers(HttpMethod.POST, "/api/certificate/fail").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/user/courses").permitAll()
@@ -72,6 +74,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);  // httpOnly Cookie 전송을 위해 필요
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

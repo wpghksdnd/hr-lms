@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtProvider {
@@ -18,6 +19,9 @@ public class JwtProvider {
 
     @Value("${jwt.expiration-ms:86400000}")
     private long expirationMs;
+
+    @Value("${jwt.refresh-expiration-days:7}")
+    private int refreshExpirationDays;
 
     private SecretKey key;
 
@@ -48,5 +52,18 @@ public class JwtProvider {
     public boolean isValid(String token) {
         try { parse(token); return true; }
         catch (JwtException | IllegalArgumentException e) { return false; }
+    }
+
+    /** Refresh Token용 UUID 생성 (DB에 저장하는 opaque token) */
+    public String generateRefreshToken() {
+        return UUID.randomUUID().toString();
+    }
+
+    public int getRefreshExpirationDays() {
+        return refreshExpirationDays;
+    }
+
+    public long getExpirationMs() {
+        return expirationMs;
     }
 }

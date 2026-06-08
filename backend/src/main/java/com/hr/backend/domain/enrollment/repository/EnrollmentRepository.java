@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
@@ -80,6 +82,46 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
         ORDER BY e.enrolledAt ASC
         """)
     List<Enrollment> findAllPending();
+
+    @Query(value = """
+        SELECT e FROM Enrollment e
+        JOIN FETCH e.user u
+        LEFT JOIN FETCH u.department
+        JOIN FETCH e.round r
+        JOIN FETCH r.course
+        """,
+        countQuery = "SELECT COUNT(e) FROM Enrollment e")
+    Page<Enrollment> findAllWithUserAndCoursePaged(Pageable pageable);
+
+    /** 필터(부서/카테고리/미이수) + 페이지네이션 통합 쿼리 */
+    @Query(value = """
+        SELECT e FROM Enrollment e
+        JOIN FETCH e.user u
+        LEFT JOIN FETCH u.department d
+        JOIN FETCH e.round r
+        JOIN FETCH r.course c
+        WHERE (:dept IS NULL OR d.name = :dept)
+          AND (:category IS NULL OR c.category = :category)
+          AND (:onlyIncomplete = false OR e.status <> 'DONE')
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Enrollment e
+        LEFT JOIN e.user u
+        LEFT JOIN u.department d
+        LEFT JOIN e.round r
+        LEFT JOIN r.course c
+        WHERE (:dept IS NULL OR d.name = :dept)
+          AND (:category IS NULL OR c.category = :category)
+          AND (:onlyIncomplete = false OR e.status <> 'DONE')
+        """)
+    Page<Enrollment> findFilteredPaged(
+        @Param("dept") String dept,
+        @Param("category") String category,
+        @Param("onlyIncomplete") boolean onlyIncomplete,
+        Pageable pageable);
+
+    /** 통계용 count 쿼리 — findAll() 대신 사용 */
+    long countByStatus(Enrollment.Status status);
 
     /** enrollment 단건 + 연관 엔티티 일괄 로드 (EnrollmentUserController 전용) */
     @Query("""

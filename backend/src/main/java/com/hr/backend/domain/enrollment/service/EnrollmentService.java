@@ -21,6 +21,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +51,23 @@ public class EnrollmentService {
         return enrollmentRepository.findAllWithUserAndCourse().stream()
                 .map(EnrollmentResponse::new)
                 .toList();
+    }
+
+    /** 전체 이수 현황 페이지네이션 조회 (관리자용) */
+    public Page<EnrollmentResponse> getAllPaged(int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "enrollmentId"));
+        return enrollmentRepository.findAllWithUserAndCoursePaged(pageable).map(EnrollmentResponse::new);
+    }
+
+    /** 필터 + 페이지네이션 통합 조회 */
+    public Page<EnrollmentResponse> getFilteredPaged(
+            String filter, String dept, String category, int page, int size) {
+        boolean onlyIncomplete = "incomplete".equalsIgnoreCase(filter);
+        String deptParam     = (dept     != null && !dept.isBlank())     ? dept     : null;
+        String categoryParam = (category != null && !category.isBlank()) ? category : null;
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "enrollmentId"));
+        return enrollmentRepository.findFilteredPaged(deptParam, categoryParam, onlyIncomplete, pageable)
+                .map(EnrollmentResponse::new);
     }
 
     
@@ -276,12 +296,11 @@ public class EnrollmentService {
 
     /** 수강 통계 조회 */
     public Map<String, Object> getEnrollmentStatistics() {
-        List<Enrollment> all = enrollmentRepository.findAll();
         Map<String, Object> stats = new HashMap<>();
-        stats.put("total",      (long) all.size());
-        stats.put("notStarted", all.stream().filter(e -> e.getStatus() == Enrollment.Status.NOT_STARTED).count());
-        stats.put("inProgress", all.stream().filter(e -> e.getStatus() == Enrollment.Status.IN_PROGRESS).count());
-        stats.put("completed",  all.stream().filter(e -> e.getStatus() == Enrollment.Status.DONE).count());
+        stats.put("total",      enrollmentRepository.count());
+        stats.put("notStarted", enrollmentRepository.countByStatus(Enrollment.Status.NOT_STARTED));
+        stats.put("inProgress", enrollmentRepository.countByStatus(Enrollment.Status.IN_PROGRESS));
+        stats.put("completed",  enrollmentRepository.countByStatus(Enrollment.Status.DONE));
         return stats;
     }
 

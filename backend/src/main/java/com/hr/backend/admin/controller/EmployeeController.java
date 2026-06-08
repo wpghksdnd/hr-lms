@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api/admin/employees")
@@ -27,8 +28,14 @@ public class EmployeeController {
     private final EmployeeExcelService employeeExcelService;
 
     @GetMapping
-    public ResponseEntity<List<EmployeeResponse>> getAll(
-            @RequestParam(required = false) String keyword) {
+    public ResponseEntity<?> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "50") int size) {
+        if (page != null) {
+            Page<EmployeeResponse> result = employeeService.getAllPaged(keyword, page, size);
+            return ResponseEntity.ok(result);
+        }
         return ResponseEntity.ok(employeeService.getAll(keyword));
     }
 

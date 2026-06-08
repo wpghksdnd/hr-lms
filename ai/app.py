@@ -5,6 +5,7 @@ import os
 import logging
 from collections import deque
 from threading import Lock
+from functools import wraps
 
 load_dotenv()  # .env 파일 읽어오기
 
@@ -13,6 +14,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 API_KEY = os.getenv("OPENROUTER_API_KEY")  # .env에서 키 가져오기
+# 내부 서비스 간 인증 토큰 — 환경변수 미설정 시 인증 생략 (개발 환경 편의)
+AI_INTERNAL_TOKEN = os.getenv("AI_INTERNAL_TOKEN", "")
+
+
+def require_internal_token(f):
+    """Spring 백엔드만 호출할 수 있도록 내부 토큰 검증."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if AI_INTERNAL_TOKEN:
+            token = request.headers.get("X-Internal-Token", "")
+            if token != AI_INTERNAL_TOKEN:
+                logger.warning("AI 서버 인증 실패 — X-Internal-Token 불일치")
+                return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # 대화 기록 최대 유지 건수 (system 메시지 1개 + 사용자/AI 메시지 N개)
 MAX_HISTORY_PER_USER = int(os.getenv("MAX_HISTORY_PER_USER", "20"))
@@ -120,6 +136,7 @@ def ask_ai(messages: list) -> str:
 # ✅ 챗봇 API 엔드포인트
 # 백엔드(Spring Boot)가 이 주소로 POST 요청 보내면 됨
 @app.route('/chat', methods=['POST'])
+@require_internal_token
 def chat():
     data = request.json
     if not data:

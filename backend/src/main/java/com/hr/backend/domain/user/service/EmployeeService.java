@@ -9,6 +9,9 @@ import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,13 @@ public class EmployeeService {
         return userRepository.searchByKeyword(kw).stream()
                 .map(EmployeeResponse::new)
                 .toList();
+    }
+
+    /** 직원 목록 페이지네이션 조회 */
+    public Page<EmployeeResponse> getAllPaged(String keyword, int page, int size) {
+        String kw = (keyword == null || keyword.isBlank()) ? null : keyword;
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "userId"));
+        return userRepository.searchByKeywordPaged(kw, pageable).map(EmployeeResponse::new);
     }
 
     /** 직원 단건 조회 */

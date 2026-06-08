@@ -1,10 +1,11 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  getEmployees, createEmployee, updateEmployee, deleteEmployee,
+  getEmployeesPaged, createEmployee, updateEmployee, deleteEmployee,
   getDepartments, exportEmployeesExcel, getEnrollmentsByUser,
   EmployeeResponse, EmployeeRequest, Department,
 } from '@/api/adminApi';
+import Pagination from '@/components/admin/Pagination';
 
 import { downloadBlob } from '@/lib/utils';
 
@@ -19,6 +20,10 @@ export default function EmployeesPage() {
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 20;
 
   // 직원 CRUD 모달
   const [modalOpen, setModalOpen] = useState(false);
@@ -38,17 +43,27 @@ export default function EmployeesPage() {
     getEnrollmentsByUser(emp.userId).then(setEnrollments).catch(() => setEnrollments([])).finally(() => setEnrollLoading(false));
   };
 
-  const load = useCallback(async (kw?: string) => {
+  const load = useCallback(async (kw?: string, p = 0) => {
     setLoading(true);
     try {
-      const [emps, depts] = await Promise.all([getEmployees(kw), getDepartments()]);
-      setEmployees(emps);
+      const [result, depts] = await Promise.all([
+        getEmployeesPaged(kw, p, PAGE_SIZE),
+        getDepartments(),
+      ]);
+      setEmployees(result.content);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
       setDepartments(depts);
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    load(keyword || undefined, p);
+  };
 
   const openCreate = () => {
     setEditTarget(null);
@@ -78,7 +93,7 @@ export default function EmployeesPage() {
     if (!confirm('직원을 삭제하시겠습니까?')) return;
     try {
       await deleteEmployee(id);
-      setEmployees((prev) => prev.filter((e) => e.userId !== id));
+      load(keyword || undefined, page);
     } catch {
       alert('삭제에 실패했습니다.');
     }
@@ -94,11 +109,12 @@ export default function EmployeesPage() {
     setSaving(true);
     try {
       if (editTarget) {
-        const updated = await updateEmployee(editTarget.userId, form);
-        setEmployees((prev) => prev.map((e) => e.userId === updated.userId ? updated : e));
+        await updateEmployee(editTarget.userId, form);
+        load(keyword || undefined, page);
       } else {
-        const created = await createEmployee(form);
-        setEmployees((prev) => [created, ...prev]);
+        await createEmployee(form);
+        setPage(0);
+        load(keyword || undefined, 0);
       }
       setModalOpen(false);
     } catch (err: unknown) {
@@ -120,7 +136,8 @@ export default function EmployeesPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    load(keyword || undefined);
+    setPage(0);
+    load(keyword || undefined, 0);
   };
 
   const STATUS_COLOR_MAP: Record<string, string> = { IN_PROGRESS: 'bg-blue-50 text-blue-600', DONE: 'bg-emerald-50 text-emerald-600', NOT_STARTED: 'bg-yellow-50 text-yellow-500' };
@@ -278,6 +295,15 @@ export default function EmployeesPage() {
             </table>
           </div>
         )}
+        <div className="px-4 border-t border-gray-50">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            size={PAGE_SIZE}
+            onChange={handlePageChange}
+          />
+        </div>
       </div>
 
       {/* Modal */}
