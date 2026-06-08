@@ -16,3 +16,12 @@ jwt:
 ai:
   server:
     url: http://localhost:5000
+  internal-token: test-internal-token
+
+certificate:
+  internal-api-token: test-token-for-ci
+  storage-path: /tmp/test-certificates
+  trigger-enabled: false
+
+cookie:
+  secure: false
