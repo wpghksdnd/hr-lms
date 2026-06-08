@@ -18,6 +18,7 @@ import com.hr.backend.domain.notification.service.NotificationService;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CertificateWorkflowService {
@@ -86,12 +88,20 @@ public class CertificateWorkflowService {
             payload.put("roundId", enrollment.getRound().getRoundId());
             payload.put("enrollmentId", enrollment.getEnrollmentId());
 
-            restClient.post()
-                    .uri(n8nWebhookUrl)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(payload)
-                    .retrieve()
-                    .toBodilessEntity();
+            try {
+                restClient.post()
+                        .uri(n8nWebhookUrl)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(payload)
+                        .retrieve()
+                        .toBodilessEntity();
+            } catch (Exception e) {
+                log.error("[이수증] n8n 웹훅 호출 실패 — enrollmentId={}, url={}, error={}",
+                        enrollment.getEnrollmentId(), n8nWebhookUrl, e.getMessage());
+                log.warn("[이수증] n8n 실패로 PDF 직접 생성으로 폴백합니다 — enrollmentId={}",
+                        enrollment.getEnrollmentId());
+                generateCertificateForRound(enrollment.getUser().getUserId(), enrollment.getRound().getRoundId());
+            }
         } else {
             // n8n 미설정 환경(로컬 개발 등): 해당 수강 차수 기준으로 PDF 직접 생성 fallback
             generateCertificateForRound(enrollment.getUser().getUserId(), enrollment.getRound().getRoundId());

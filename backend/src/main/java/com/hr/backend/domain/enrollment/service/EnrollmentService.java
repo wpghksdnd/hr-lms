@@ -84,32 +84,22 @@ public class EnrollmentService {
         enrollmentRepository.delete(enrollment);
     }
     /**
-     * 필터 조건에 따른 이수 현황 조회
+     * 복합 필터 이수 현황 조회 — 조건들을 AND로 조합한다.
      *
      * @param filter   "incomplete" → 미이수자만, 그 외/null → 전체
-     * @param dept     부서명 필터
-     * @param category 카테고리 필터 (법정의무교육 / 직무교육)
-     * @param role     대상직군 필터 (1=현장직, 2=사무직)
+     * @param dept     부서명 필터 (null이면 전체)
+     * @param category 카테고리 필터 (법정의무교육 / 직무교육, null이면 전체)
+     * @param role     대상직군 필터 (1=현장직, 2=사무직, null이면 전체)
      */
     public List<EnrollmentResponse> getFiltered(
             String filter, String dept, String category, Integer role) {
-
-        List<Enrollment> result;
-
-        // 미이수자 필터가 최우선
-        if ("incomplete".equalsIgnoreCase(filter)) {
-            result = enrollmentRepository.findAllNotCompleted();
-        } else if (dept != null && !dept.isBlank()) {
-            result = enrollmentRepository.findAllByDepartment(dept);
-        } else if (category != null && !category.isBlank()) {
-            result = enrollmentRepository.findAllByCategory(category);
-        } else if (role != null) {
-            result = enrollmentRepository.findAllByTargetRole(role);
-        } else {
-            result = enrollmentRepository.findAllWithUserAndCourse();
-        }
-
-        return result.stream().map(EnrollmentResponse::new).toList();
+        boolean onlyIncomplete = "incomplete".equalsIgnoreCase(filter);
+        String deptParam     = (dept     != null && !dept.isBlank())     ? dept     : null;
+        String categoryParam = (category != null && !category.isBlank()) ? category : null;
+        return enrollmentRepository.findFiltered(deptParam, categoryParam, onlyIncomplete, role)
+                .stream()
+                .map(EnrollmentResponse::new)
+                .toList();
     }
 
     /** 특정 직원 이수 현황 */
