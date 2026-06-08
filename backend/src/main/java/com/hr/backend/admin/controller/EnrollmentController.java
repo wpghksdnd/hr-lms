@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api/admin/enrollments")
@@ -40,11 +41,19 @@ public class EnrollmentController {
      * @param role     대상직군 (1=현장직, 2=사무직)
      */
     @GetMapping
-    public ResponseEntity<List<EnrollmentResponse>> getAll(
+    public ResponseEntity<?> getAll(
             @RequestParam(required = false) String filter,
             @RequestParam(required = false) String dept,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Integer role) {
+            @RequestParam(required = false) Integer role,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (page != null) {
+            // page 파라미터가 있으면 항상 Page<T> 반환 (필터 포함)
+            Page<EnrollmentResponse> result =
+                    enrollmentService.getFilteredPaged(filter, dept, category, page, size);
+            return ResponseEntity.ok(result);
+        }
         return ResponseEntity.ok(enrollmentService.getFiltered(filter, dept, category, role));
     }
 

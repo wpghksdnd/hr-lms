@@ -3,6 +3,7 @@ package com.hr.backend.security.jwt;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -26,19 +28,13 @@ public class JwtFilter extends OncePerRequestFilter {
                                     HttpServletResponse res,
                                     FilterChain chain) throws ServletException, IOException {
 
-        String header = req.getHeader("Authorization");
-        // 보안 주의: 토큰 내용(서명·페이로드)은 로그에 절대 출력하지 않음
-        log.debug("[JwtFilter] {} {} | Authorization: {}",
-                req.getMethod(), req.getRequestURI(),
-                header != null ? "Bearer ***" : "없음");
+        String token = extractToken(req);
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+        if (token != null) {
             if (jwtProvider.isValid(token)) {
                 Claims claims = jwtProvider.parse(token);
                 String role   = claims.get("role", String.class);
                 log.debug("[JwtFilter] 토큰 유효 | subject={} role={}", claims.getSubject(), role);
-                // role 이 이미 "ROLE_ADMIN" / "ROLE_USER" 형태로 저장되어 있음
                 var auth = new UsernamePasswordAuthenticationToken(
                         claims.getSubject(), null,
                         List.of(new SimpleGrantedAuthority(role)));
@@ -46,9 +42,23 @@ public class JwtFilter extends OncePerRequestFilter {
             } else {
                 log.warn("[JwtFilter] 토큰 유효하지 않음 (만료 or 서명 오류) URI={}", req.getRequestURI());
             }
-        } else {
-            log.debug("[JwtFilter] Authorization 헤더 없거나 Bearer 형식 아님 → 인증 없이 진행");
         }
         chain.doFilter(req, res);
+    }
+
+    /** Authorization 헤더 → access_token 쿠키 순으로 토큰을 추출한다. */
+    private String extractToken(HttpServletRequest req) {
+        String header = req.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        if (req.getCookies() != null) {
+            return Arrays.stream(req.getCookies())
+                    .filter(c -> "access_token".equals(c.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+        }
+        return null;
     }
 }

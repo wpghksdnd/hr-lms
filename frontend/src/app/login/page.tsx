@@ -25,13 +25,12 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const data = await login({ employeeNo: empNo, password });
+      // 토큰은 httpOnly 쿠키로 자동 처리 — localStorage에는 저장하지 않음
       if (!data.passwordChanged) {
-        // 비밀번호 변경 완료 전까지는 sessionStorage에만 보관 (다른 탭 접근 차단)
-        sessionStorage.setItem('token', data.token);
+        // 비밀번호 변경 전: 다른 탭 접근을 막기 위해 user 정보를 sessionStorage에만 보관
         sessionStorage.setItem('user', JSON.stringify(data));
         setNeedsPwChange(true);
       } else {
-        localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data));
       }
       if (data.passwordChanged) {
@@ -58,14 +57,11 @@ export default function LoginPage() {
       await changePassword({ currentPassword: pwCurrent, newPassword: pwNext });
       // 변경 완료 후 sessionStorage → localStorage로 이동
       const stored = sessionStorage.getItem('user') ?? localStorage.getItem('user');
-      const token  = sessionStorage.getItem('token') ?? localStorage.getItem('token');
       let role = 'ROLE_USER';
-      if (stored && token) {
+      if (stored) {
         const parsed = JSON.parse(stored);
         role = parsed.role ?? 'ROLE_USER';
-        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify({ ...parsed, passwordChanged: true }));
-        sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
       }
       router.replace(role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');

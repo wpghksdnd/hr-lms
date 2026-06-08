@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { LoginResponse } from '@/api/auth';
+import { logout } from '@/api/auth';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/notifications';
 import type { NotificationItem } from '@/api/types';
 import { formatNotificationDate, getNotificationIcon, getNotificationTitle } from '@/utils/notificationUi';
@@ -27,10 +28,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const notiRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { router.replace('/login'); return; }
     const stored = localStorage.getItem('user');
-    if (stored) setUserInfo(JSON.parse(stored));
+    if (!stored) { router.replace('/login'); return; }
+    try { setUserInfo(JSON.parse(stored)); } catch { localStorage.removeItem('user'); router.replace('/login'); return; }
     const refreshUnreadCount = () => getUnreadCount().then(setUnreadCount).catch(() => {});
     // 알림 개수 초기 로드
     refreshUnreadCount();
@@ -76,8 +76,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     router.push(`/notifications?notificationId=${notification.notificationId}`);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    await logout().catch(() => {});  // 쿠키 삭제 (실패해도 로컬 정리는 진행)
     localStorage.removeItem('user');
     router.replace('/login');
   };

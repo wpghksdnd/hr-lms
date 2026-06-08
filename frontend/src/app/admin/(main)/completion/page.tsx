@@ -1,12 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import {
-  getEnrollments, getPendingEnrollments, approveEnrollment, rejectEnrollment,
+  getEnrollmentsPaged, getPendingEnrollments, approveEnrollment, rejectEnrollment,
   exportEnrollmentsExcel, getEnrollmentStatistics, getEnrollmentProgress,
   EnrollmentResponse, EnrollmentFilter, EnrollmentStatistics,
 } from '@/api/adminApi';
 import type { UserVideoProgress } from '@/api/types';
 import { downloadBlob } from '@/lib/utils';
+import Pagination from '@/components/admin/Pagination';
 
 const STATUS_LABEL: Record<string, string> = { IN_PROGRESS: '수강 중', COMPLETED: '이수 완료', DONE: '이수 완료', DROPPED: '중도 취소', NOT_STARTED: '미시작' };
 const APPROVAL_LABEL: Record<string, string> = { PENDING: '승인 대기', APPROVED: '승인', REJECTED: '반려' };
@@ -108,16 +109,23 @@ export default function CompletionPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchKw, setSearchKw] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const PAGE_SIZE = 20;
 
-  const loadAll = async (params?: EnrollmentFilter) => {
+  const loadAll = async (params?: EnrollmentFilter, p = 0) => {
     setLoading(true);
     try {
-      const [all, pend, s] = await Promise.all([
-        getEnrollments(params),
+      const [result, pend, s] = await Promise.all([
+        getEnrollmentsPaged(params, p, PAGE_SIZE),
         getPendingEnrollments(),
         getEnrollmentStatistics(),
       ]);
-      setEnrollments(all); setPending(pend); setStats(s);
+      setEnrollments(result.content);
+      setTotalPages(result.totalPages);
+      setTotalElements(result.totalElements);
+      setPending(pend); setStats(s);
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -126,15 +134,20 @@ export default function CompletionPage() {
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
-    loadAll({ dept: filterDept || undefined, category: filterCategory || undefined });
+    setPage(0);
+    loadAll({ dept: filterDept || undefined, category: filterCategory || undefined }, 0);
+  };
+
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    loadAll({ dept: filterDept || undefined, category: filterCategory || undefined }, p);
   };
 
   const handleApprove = async (id: number) => {
     try {
       await approveEnrollment(id);
       setPending((prev) => prev.filter((e) => e.enrollmentId !== id));
-      const updated = await getEnrollments();
-      setEnrollments(updated);
+      loadAll({ dept: filterDept || undefined, category: filterCategory || undefined }, page);
     } catch { alert('승인 처리 실패'); }
   };
 
@@ -310,6 +323,17 @@ export default function CompletionPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {tab === 'all' && (
+          <div className="px-4 border-t border-gray-50">
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              size={PAGE_SIZE}
+              onChange={handlePageChange}
+            />
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { logout } from '@/api/auth';
 
 const NAV_ITEMS = [
   { label: '대시보드',    href: '/admin/dashboard' },
@@ -20,21 +21,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [adminName, setAdminName] = useState('관리자');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { router.replace('/login'); return; }
     const stored = localStorage.getItem('user');
-    if (!stored) {
-      // user 정보 없으면 비정상 상태 — 로그인으로 이동
+    if (!stored) { router.replace('/login'); return; }
+    try {
+      const user = JSON.parse(stored);
+      if (user.role !== 'ROLE_ADMIN') { router.replace('/dashboard'); return; }
+      setAdminName(user.name ?? '관리자');
+    } catch {
+      localStorage.removeItem('user');
       router.replace('/login');
-      return;
     }
-    const user = JSON.parse(stored);
-    if (user.role !== 'ROLE_ADMIN') { router.replace('/dashboard'); return; }
-    setAdminName(user.name ?? '관리자');
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    await logout().catch(() => {});  // 쿠키 삭제 (실패해도 로컬 정리는 진행)
     localStorage.removeItem('user');
     router.replace('/login');
   };

@@ -25,3 +25,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
 export async function changePassword(data: ChangePasswordRequest): Promise<void> {
   await client.put('/api/auth/password', data);
 }
+
+export async function logout(): Promise<void> {
+  await client.post('/api/auth/logout');
+}

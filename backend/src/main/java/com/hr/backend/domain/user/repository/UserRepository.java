@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmployeeNo(String employeeNo);
@@ -31,4 +33,24 @@ public interface UserRepository extends JpaRepository<User, Long> {
         ORDER BY u.userId DESC
         """)
     List<User> searchByKeyword(@Param("keyword") String keyword);
+
+    @Query(value = """
+        SELECT u FROM User u
+        LEFT JOIN u.department d
+        WHERE u.isActive = true
+          AND (:keyword IS NULL
+               OR u.name       LIKE %:keyword%
+               OR u.employeeNo LIKE %:keyword%
+               OR d.name       LIKE %:keyword%)
+        """,
+        countQuery = """
+        SELECT COUNT(u) FROM User u
+        LEFT JOIN u.department d
+        WHERE u.isActive = true
+          AND (:keyword IS NULL
+               OR u.name       LIKE %:keyword%
+               OR u.employeeNo LIKE %:keyword%
+               OR d.name       LIKE %:keyword%)
+        """)
+    Page<User> searchByKeywordPaged(@Param("keyword") String keyword, Pageable pageable);
 }

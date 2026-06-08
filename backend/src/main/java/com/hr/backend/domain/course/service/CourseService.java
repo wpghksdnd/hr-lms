@@ -5,6 +5,9 @@ import com.hr.backend.admin.dto.CourseResponse;
 import com.hr.backend.domain.course.entity.Course;
 import com.hr.backend.domain.course.repository.CourseRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,11 @@ public class CourseService {
         return courseRepository.findAllByActiveTrue().stream()
                 .map(CourseResponse::new)
                 .toList();
+    }
+
+    public Page<CourseResponse> getAllPaged(int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "courseId"));
+        return courseRepository.findAllByActiveTrue(pageable).map(CourseResponse::new);
     }
 
     public CourseResponse getOne(Long id) {

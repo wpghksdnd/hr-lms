@@ -10,6 +10,7 @@ import com.hr.backend.domain.enrollment.repository.CertificateRepository;
 import com.hr.backend.domain.enrollment.service.CertificateWorkflowService;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -38,6 +39,14 @@ public class CertificateController {
 
     @Value("${certificate.internal-api-token:change-me-in-prod}")
     private String internalApiToken;
+
+    @PostConstruct
+    public void validateInternalToken() {
+        if ("change-me-in-prod".equals(internalApiToken) || internalApiToken.isBlank()) {
+            throw new IllegalStateException(
+                "CERTIFICATE_INTERNAL_API_TOKEN 환경변수가 설정되지 않았습니다. 프로덕션 배포 전 반드시 변경하세요.");
+        }
+    }
 
     /**
      * 이수증 발급.

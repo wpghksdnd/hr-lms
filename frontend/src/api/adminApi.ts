@@ -1,5 +1,13 @@
 import client from './client';
 
+export interface PageResult<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;  // 현재 페이지 (0-based)
+  size: number;
+}
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 
 export interface DeptStat {
@@ -62,7 +70,13 @@ export interface EmployeeRequest {
 }
 
 export const getEmployees = (keyword?: string): Promise<EmployeeResponse[]> =>
-  client.get('/api/admin/employees', { params: keyword ? { keyword } : {} }).then((r) => r.data);
+  client.get('/api/admin/employees', { params: keyword ? { keyword } : {} }).then((r) => {
+    const d = r.data;
+    return Array.isArray(d) ? d : (d.content ?? []);
+  });
+
+export const getEmployeesPaged = (keyword?: string, page = 0, size = 20): Promise<PageResult<EmployeeResponse>> =>
+  client.get('/api/admin/employees', { params: { ...(keyword ? { keyword } : {}), page, size } }).then((r) => r.data);
 
 export const createEmployee = (req: EmployeeRequest): Promise<EmployeeResponse> =>
   client.post('/api/admin/employees', req).then((r) => r.data);
@@ -117,7 +131,13 @@ export interface AdminCourseRequest {
 }
 
 export const getAdminCourses = (): Promise<AdminCourseResponse[]> =>
-  client.get('/api/admin/courses').then((r) => r.data);
+  client.get('/api/admin/courses').then((r) => {
+    const d = r.data;
+    return Array.isArray(d) ? d : (d.content ?? []);
+  });
+
+export const getAdminCoursesPaged = (page = 0, size = 10): Promise<PageResult<AdminCourseResponse>> =>
+  client.get('/api/admin/courses', { params: { page, size } }).then((r) => r.data);
 
 export const createCourse = (req: AdminCourseRequest): Promise<AdminCourseResponse> =>
   client.post('/api/admin/courses', req).then((r) => r.data);
@@ -323,7 +343,13 @@ export interface EnrollmentFilter {
 }
 
 export const getEnrollments = (params?: EnrollmentFilter): Promise<EnrollmentResponse[]> =>
-  client.get('/api/admin/enrollments', { params }).then((r) => r.data);
+  client.get('/api/admin/enrollments', { params }).then((r) => {
+    const d = r.data;
+    return Array.isArray(d) ? d : (d.content ?? []);
+  });
+
+export const getEnrollmentsPaged = (params?: EnrollmentFilter, page = 0, size = 20): Promise<PageResult<EnrollmentResponse>> =>
+  client.get('/api/admin/enrollments', { params: { ...params, page, size } }).then((r) => r.data);
 
 export const getPendingEnrollments = (): Promise<EnrollmentResponse[]> =>
   client.get('/api/admin/enrollments/pending').then((r) => r.data);
