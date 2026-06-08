@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 API_KEY = os.getenv("OPENROUTER_API_KEY")  # .env에서 키 가져오기
 # 내부 서비스 간 인증 토큰 — 환경변수 미설정 시 인증 생략 (개발 환경 편의)
 AI_INTERNAL_TOKEN = os.getenv("AI_INTERNAL_TOKEN", "")
+if not AI_INTERNAL_TOKEN:
+    logger.warning("[보안] AI_INTERNAL_TOKEN이 설정되지 않았습니다. 운영 환경에서는 반드시 설정하세요.")
 
 
 def require_internal_token(f):

@@ -45,9 +45,10 @@ pipeline {
                                                 sed -i '/^SPRING_DATASOURCE_URL=/d' .env
                                                 echo "SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8" >> .env
 
-                                                # 누락되어 경고가 나던 토큰은 기본값 주입(운영에선 credential 값 사용 권장)
-                                                if ! awk -F= '/^CERTIFICATE_INTERNAL_API_TOKEN=/{found=1} END{exit(found?0:1)}' .env; then
-                                                    echo "CERTIFICATE_INTERNAL_API_TOKEN=change-me-in-prod" >> .env
+                                                # CERTIFICATE_INTERNAL_API_TOKEN 누락 시 배포 중단
+                                                if ! awk -F= -v k="CERTIFICATE_INTERNAL_API_TOKEN" '$1==k && length($2)>0 {found=1} END{exit(found?0:1)}' .env; then
+                                                    echo "[ERROR] .env 필수값 누락: CERTIFICATE_INTERNAL_API_TOKEN"
+                                                    exit 1
                                                 fi
 
                         docker compose --env-file .env config -q
