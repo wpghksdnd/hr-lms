@@ -120,7 +120,7 @@ export default function CoursesPage() {
                         </span>
                       )}
                       {status === 'IN_PROGRESS' && (
-                        <Link href="/learning"
+                        <Link href={`/learning?courseId=${c.courseId}`}
                           className="text-[11px] text-[#185FA5] font-semibold hover:underline">
                           학습하기 →
                         </Link>

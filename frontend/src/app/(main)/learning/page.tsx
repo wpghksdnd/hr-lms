@@ -36,6 +36,31 @@ function extractYoutubeId(url: string): string | null {
   return null;
 }
 
+function getInitialCourseIdFromUrl() {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('courseId');
+  const courseId = raw ? Number(raw) : NaN;
+  return Number.isFinite(courseId) && courseId > 0 ? courseId : null;
+}
+
+type ApiErrorLike = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      error?: string;
+    };
+  };
+  message?: string;
+};
+
+function getApiErrorDetail(error: unknown) {
+  const err = error as ApiErrorLike;
+  const status = err.response?.status;
+  const message = err.response?.data?.message ?? err.response?.data?.error ?? err.message;
+  return [status ? `HTTP ${status}` : null, message].filter(Boolean).join(' - ');
+}
+
 // YT Player 타입 (간이)
 type YTPlayer = {
   getCurrentTime: () => number;
@@ -91,6 +116,8 @@ export default function LearningPage() {
   const ytPlayerRef = useRef<YTPlayer | null>(null);          // YouTube Player 인스턴스
   const ytHighWaterMarkRef = useRef(0);                       // YouTube 최대 도달 초
   const ytIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionSaveInFlightRef = useRef(false);
+  const completionSentRef = useRef(false);
   // markCompleted / triggerQuiz를 ref로 보관 (initYTPlayer 내부에서 호출 시 선언 순서 문제 방지)
   const markCompletedRef = useRef<(id: number) => void>(() => {});
   const triggerQuizRef = useRef<(lectureId: number) => void>(() => {});
@@ -100,7 +127,13 @@ export default function LearningPage() {
     getMyCourses(0, 20)
       .then((page) => {
         setMyCourses(page.content);
-        if (page.content.length > 0) setSelectedCourseId(page.content[0].courseId);
+        const requestedCourseId = getInitialCourseIdFromUrl();
+        const requestedCourse = page.content.find((course) => course.courseId === requestedCourseId);
+        if (requestedCourse) {
+          setSelectedCourseId(requestedCourse.courseId);
+        } else if (page.content.length > 0) {
+          setSelectedCourseId(page.content[0].courseId);
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingCourses(false));
@@ -139,10 +172,39 @@ export default function LearningPage() {
     if (ytIntervalRef.current) { clearInterval(ytIntervalRef.current); ytIntervalRef.current = null; }
   }, []);
 
+  const saveCompletionIfReady = useCallback((video: MyCourseVideoStatus, watchedSec: number) => {
+    if (video.isCompleted || video.durationSec <= 0) return;
+    if (watchedSec < video.durationSec * 0.8) return;
+    if (completionSentRef.current || completionSaveInFlightRef.current) return;
+
+    completionSentRef.current = true;
+    completionSaveInFlightRef.current = true;
+
+    endVideoWatch(video.videoId, watchedSec)
+      .then((result) => {
+        completionSaveInFlightRef.current = false;
+        if (result.videoCompleted) {
+          markCompletedRef.current(video.videoId);
+          setStatusMsg('영상 시청 완료! 다음 강의를 수강할 수 있습니다.');
+          if (result.lectureCompleted) triggerQuizRef.current(video.lectureId);
+        } else {
+          completionSentRef.current = false;
+        }
+      })
+      .catch((err) => {
+        completionSentRef.current = false;
+        completionSaveInFlightRef.current = false;
+        const detail = getApiErrorDetail(err);
+        setStatusMsg(`영상 완료 저장에 실패했습니다.${detail ? ` (${detail})` : ''} 잠시 후 다시 재생해 주세요.`);
+      });
+  }, []);
+
   const startYtGuard = useCallback(() => {
     stopYtGuard();
     ytIntervalRef.current = setInterval(() => {
       const player = ytPlayerRef.current;
+      const video = currentVideoRef.current;
+      const tracking = trackingRef.current;
       if (!player) return;
       try {
         const current = player.getCurrentTime();
@@ -152,10 +214,20 @@ export default function LearningPage() {
           setStatusMsg('⚠️ 앞으로 건너뛸 수 없습니다. 순서대로 시청해 주세요.');
         } else {
           ytHighWaterMarkRef.current = Math.max(ytHighWaterMarkRef.current, current);
+          if (video) {
+            const elapsed = tracking.playing && tracking.startedAtMs > 0
+              ? Math.floor((performance.now() - tracking.startedAtMs) / 1000)
+              : 0;
+            const watchedSec = Math.max(
+              Math.floor(ytHighWaterMarkRef.current),
+              tracking.accSec + Math.max(0, elapsed),
+            );
+            saveCompletionIfReady(video, watchedSec);
+          }
         }
       } catch { /* player 아직 준비 안 됨 */ }
     }, 500);
-  }, [stopYtGuard]);
+  }, [saveCompletionIfReady, stopYtGuard]);
 
   // ── YouTube Player 초기화 ────────────────────────────────────
   const initYTPlayer = useCallback((videoId: string, startSec: number) => {
@@ -209,6 +281,7 @@ export default function LearningPage() {
                 .then((result) => {
                   const isEnded = e.data === (state?.ENDED ?? 0);
                   if (result.videoCompleted) {
+                    completionSentRef.current = true;
                     markCompletedRef.current(video.videoId);
                     setStatusMsg('영상 시청 완료! 다음 강의를 수강할 수 있습니다.');
                     if (result.lectureCompleted) triggerQuizRef.current(video.lectureId);
@@ -216,7 +289,10 @@ export default function LearningPage() {
                     setStatusMsg(isEnded ? `시청 종료 — ${tracking.accSec}초 기록됨` : `일시정지 — 시청 ${tracking.accSec}초 저장`);
                   }
                 })
-                .catch(() => {});
+                .catch((err) => {
+                  const detail = getApiErrorDetail(err);
+                  setStatusMsg(`시청 시간 저장에 실패했습니다.${detail ? ` (${detail})` : ''}`);
+                });
             }
           },
         },
@@ -240,6 +316,8 @@ export default function LearningPage() {
   useEffect(() => {
     currentVideoRef.current = currentVideo;
     trackingRef.current = createTracking();
+    completionSentRef.current = Boolean(currentVideo?.isCompleted);
+    completionSaveInFlightRef.current = false;
     setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return ''; });
     setBlobLoading(false);
 
@@ -434,11 +512,15 @@ export default function LearningPage() {
       .then((result) => {
         setStatusMsg(`일시정지 — 시청 ${trackingRef.current.accSec}초 저장`);
         if (result.videoCompleted) {
+          completionSentRef.current = true;
           markCompleted(video.videoId);
           if (result.lectureCompleted) triggerQuiz(video.lectureId);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        const detail = getApiErrorDetail(err);
+        setStatusMsg(`시청 시간 저장에 실패했습니다.${detail ? ` (${detail})` : ''}`);
+      });
   }, [flushWatchedSec, markCompleted, triggerQuiz]);
 
   const handleEnded = useCallback(() => {
@@ -448,6 +530,7 @@ export default function LearningPage() {
     endVideoWatch(video.videoId, trackingRef.current.accSec)
       .then((result) => {
         if (result.videoCompleted) {
+          completionSentRef.current = true;
           markCompleted(video.videoId);
           setStatusMsg('영상 시청 완료! 다음 강의를 수강할 수 있습니다.');
           if (result.lectureCompleted) triggerQuiz(video.lectureId);
@@ -455,7 +538,10 @@ export default function LearningPage() {
           setStatusMsg(`시청 종료 — ${trackingRef.current.accSec}초 기록됨`);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        const detail = getApiErrorDetail(err);
+        setStatusMsg(`시청 종료 저장에 실패했습니다.${detail ? ` (${detail})` : ''}`);
+      });
   }, [flushWatchedSec, markCompleted, triggerQuiz]);
 
   const handleLoadedMetadata = useCallback(() => {
@@ -474,12 +560,14 @@ export default function LearningPage() {
   // ── Seek 방지 (<video> 전용) ──────────────────────────────────
   const handleTimeUpdate = useCallback(() => {
     const videoEl = videoRef.current;
+    const video = currentVideoRef.current;
     if (!videoEl) return;
     // 재생 중 도달한 최대 위치 업데이트
     if (!videoEl.paused) {
       highWaterMarkRef.current = Math.max(highWaterMarkRef.current, videoEl.currentTime);
+      if (video) saveCompletionIfReady(video, Math.floor(highWaterMarkRef.current));
     }
-  }, []);
+  }, [saveCompletionIfReady]);
 
   const handleSeeking = useCallback(() => {
     const videoEl = videoRef.current;
@@ -942,12 +1030,16 @@ export default function LearningPage() {
                         endVideoWatch(currentVideo.videoId, currentVideo.durationSec)
                           .then((result) => {
                             if (result.videoCompleted) {
+                              completionSentRef.current = true;
                               markCompleted(currentVideo.videoId);
                               setStatusMsg('시청 완료로 표시했습니다.');
                               if (result.lectureCompleted) triggerQuiz(currentVideo.lectureId);
                             }
                           })
-                          .catch(() => setStatusMsg('완료 처리에 실패했습니다.'));
+                          .catch((err) => {
+                            const detail = getApiErrorDetail(err);
+                            setStatusMsg(`완료 처리에 실패했습니다.${detail ? ` (${detail})` : ''}`);
+                          });
                       }}
                     >
                       ✓ 시청 완료 표시
