@@ -101,7 +101,7 @@ export default function CalendarPage() {
                   <div className="shrink-0 flex flex-col items-end gap-1.5">
                     <span className={`text-xs ${dd.className}`}>{dd.label}</span>
                     {isEnrolled ? (
-                      <Link href="/learning"
+                      <Link href={`/learning?courseId=${item.courseId}`}
                         className="text-[11px] font-bold text-white bg-[#185FA5] hover:bg-[#144f8b] px-2.5 py-1 rounded-lg">
                         학습하기 →
                       </Link>

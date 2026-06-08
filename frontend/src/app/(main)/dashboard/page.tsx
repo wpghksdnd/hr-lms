@@ -81,7 +81,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-                <Link href="/learning" className="px-4 py-2 bg-[#185FA5] hover:bg-[#144f8b] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
+                <Link href={`/learning?courseId=${course.courseId}`} className="px-4 py-2 bg-[#185FA5] hover:bg-[#144f8b] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
                   강의 이어보기 ›
                 </Link>
               </div>
