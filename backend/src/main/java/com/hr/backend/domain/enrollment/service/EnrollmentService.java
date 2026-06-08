@@ -61,12 +61,12 @@ public class EnrollmentService {
 
     /** 필터 + 페이지네이션 통합 조회 */
     public Page<EnrollmentResponse> getFilteredPaged(
-            String filter, String dept, String category, int page, int size) {
+            String filter, String dept, String category, Integer role, int page, int size) {
         boolean onlyIncomplete = "incomplete".equalsIgnoreCase(filter);
         String deptParam     = (dept     != null && !dept.isBlank())     ? dept     : null;
         String categoryParam = (category != null && !category.isBlank()) ? category : null;
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "enrollmentId"));
-        return enrollmentRepository.findFilteredPaged(deptParam, categoryParam, onlyIncomplete, pageable)
+        return enrollmentRepository.findFilteredPaged(deptParam, categoryParam, onlyIncomplete, role, pageable)
                 .map(EnrollmentResponse::new);
     }
 

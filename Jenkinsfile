@@ -80,6 +80,17 @@ pipeline {
             }
         }
 
+        stage('AI Tests') {
+            steps {
+                sh '''
+                    tar -C ai -cf - . | docker run --rm -i \
+                      -w /app \
+                      python:3.11-slim \
+                      /bin/sh -c 'mkdir -p /app; tar -xf - -C /app; pip install -q -r requirements.txt; pytest tests/ -v'
+                '''
+            }
+        }
+
         stage('Cleanup Legacy Containers') {
             steps {
                 sh '''
