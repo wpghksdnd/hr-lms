@@ -22,9 +22,9 @@ export const ENROLLMENT_STATUS: Record<string, { label: string; className: strin
   NOT_ENROLLED:{ label: '미신청',    className: 'bg-gray-50 text-gray-400' },
 };
 
-// ─── 초 → mm:ss 포맷 ─────────────────────────────────────────────────────────
+// ─── 초 → mm:ss 포맷 (분/초 모두 zero-pad) ───────────────────────────────────
 export function fmtSec(sec: number): string {
   const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }

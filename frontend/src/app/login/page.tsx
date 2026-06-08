@@ -25,14 +25,17 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const data = await login({ employeeNo: empNo, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data));
       if (!data.passwordChanged) {
+        // 비밀번호 변경 완료 전까지는 sessionStorage에만 보관 (다른 탭 접근 차단)
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('user', JSON.stringify(data));
         setNeedsPwChange(true);
-      } else if (data.role === 'ROLE_ADMIN') {
-        router.replace('/admin/dashboard');
       } else {
-        router.replace('/dashboard');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data));
+      }
+      if (data.passwordChanged) {
+        router.replace(data.role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');
       }
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -53,12 +56,17 @@ export default function LoginPage() {
     setPwLoading(true);
     try {
       await changePassword({ currentPassword: pwCurrent, newPassword: pwNext });
-      const stored = localStorage.getItem('user');
+      // 변경 완료 후 sessionStorage → localStorage로 이동
+      const stored = sessionStorage.getItem('user') ?? localStorage.getItem('user');
+      const token  = sessionStorage.getItem('token') ?? localStorage.getItem('token');
       let role = 'ROLE_USER';
-      if (stored) {
+      if (stored && token) {
         const parsed = JSON.parse(stored);
         role = parsed.role ?? 'ROLE_USER';
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify({ ...parsed, passwordChanged: true }));
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
       }
       router.replace(role === 'ROLE_ADMIN' ? '/admin/dashboard' : '/dashboard');
     } catch (err: unknown) {

@@ -7,7 +7,8 @@ const client = axios.create({
 
 client.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
+    // localStorage 우선, 비밀번호 강제변경 진행 중에는 sessionStorage fallback 사용
+    const token = localStorage.getItem('token') ?? sessionStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

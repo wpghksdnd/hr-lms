@@ -5,6 +5,7 @@ import { getMyCourses, getMyCourseDetail, startVideoWatch, endVideoWatch, submit
 import { getQuiz, submitQuiz, getExam, submitExam } from '@/api/assessment';
 import { createQuestion, getMyQuestions } from '@/api/qna';
 import type { MyCourseResponse, MyCourseDetailResponse, MyCourseVideoStatus, AssessmentResponse, FeedbackResponse, QnaResponse, QuestionItem } from '@/api/types';
+import { fmtSec } from '@/lib/utils';
 
 type Tracking = {
   playing: boolean;
@@ -41,12 +42,6 @@ type YTPlayer = {
   seekTo: (sec: number, allowSeekAhead: boolean) => void;
   destroy: () => void;
 };
-
-function fmtSec(sec: number) {
-  const m = Math.floor(sec / 60).toString().padStart(2, '0');
-  const s = (sec % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
 
 export default function LearningPage() {
   const [myCourses, setMyCourses] = useState<MyCourseResponse[]>([]);
@@ -165,7 +160,8 @@ export default function LearningPage() {
   // ── YouTube Player 초기화 ────────────────────────────────────
   const initYTPlayer = useCallback((videoId: string, startSec: number) => {
     ytHighWaterMarkRef.current = startSec;
-    const tracking = trackingRef.current;
+    // NOTE: trackingRef.current를 직접 참조해야 영상 전환 후 새 tracking 객체를 올바르게 사용
+    // (로컬 변수로 캡처하면 stale closure 발생)
 
     const createPlayer = () => {
       const YT = (window as { YT?: { Player?: new (...a: unknown[]) => YTPlayer; PlayerState?: Record<string, number> } }).YT;
@@ -188,6 +184,7 @@ export default function LearningPage() {
           onStateChange: (e: { data: number }) => {
             const state = (window as { YT?: { PlayerState?: Record<string, number> } }).YT?.PlayerState;
             const video = currentVideoRef.current;
+            const tracking = trackingRef.current; // stale closure 방지: 매 이벤트마다 최신 ref 참조
 
             if (e.data === (state?.PLAYING ?? 1)) {
               tracking.playing = true;
@@ -947,6 +944,7 @@ export default function LearningPage() {
                             if (result.videoCompleted) {
                               markCompleted(currentVideo.videoId);
                               setStatusMsg('시청 완료로 표시했습니다.');
+                              if (result.lectureCompleted) triggerQuiz(currentVideo.lectureId);
                             }
                           })
                           .catch(() => setStatusMsg('완료 처리에 실패했습니다.'));

@@ -2,10 +2,9 @@ package com.hr.backend.domain.notification.controller;
 
 import com.hr.backend.domain.notification.dto.NotificationResponse;
 import com.hr.backend.domain.notification.service.NotificationService;
-import com.hr.backend.domain.user.repository.UserRepository;
+import com.hr.backend.employee.util.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +25,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
-    private final UserRepository      userRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public ResponseEntity<List<NotificationResponse>> getAll() {
@@ -60,13 +59,7 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    // ──────────────────────────────────────────────────────────
-
     private Long getLoginUserId() {
-        String employeeNo = (String) SecurityContextHolder.getContext()
-                .getAuthentication().getPrincipal();
-        return userRepository.findByEmployeeNo(employeeNo)
-                .orElseThrow(() -> new IllegalStateException("인증된 사용자를 찾을 수 없습니다."))
-                .getUserId();
+        return currentUserProvider.getCurrentUserId();
     }
 }

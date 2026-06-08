@@ -6,7 +6,7 @@ import {
   EmployeeResponse, EmployeeRequest, Department,
 } from '@/api/adminApi';
 
-import { downloadBlob, getApiError } from '@/lib/utils';
+import { downloadBlob } from '@/lib/utils';
 
 const EMPTY_FORM: EmployeeRequest = {
   employeeNo: '', name: '', email: '', departmentId: 0,
