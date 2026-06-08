@@ -5,26 +5,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { LoginResponse } from '@/api/auth';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/notifications';
 import type { NotificationItem } from '@/api/types';
+import { formatNotificationDate, getNotificationIcon, getNotificationTitle } from '@/utils/notificationUi';
 
 const NAV_TABS = [
   { href: '/dashboard', label: '홈' },
   { href: '/courses', label: '수강신청' },
   { href: '/learning', label: '동영상 학습' },
-  { href: '/exam', label: '시험' },
   { href: '/calendar', label: '캘린더' },
   { href: '/notices', label: '공지사항' },
   { href: '/chatbot', label: 'AI 챗봇' },
   { href: '/mypage', label: '마이페이지' },
 ];
-
-const NOTI_ICON: Record<string, string> = {
-  ENROLLMENT_APPROVED: '✅',
-  ENROLLMENT_REJECTED: '❌',
-  CERTIFICATE_ISSUED:  '🏅',
-  COURSE_DEADLINE:     '⏰',
-  COURSE_STARTED:      '📚',
-  SYSTEM:              '🔔',
-};
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,11 +31,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     if (!token) { router.replace('/login'); return; }
     const stored = localStorage.getItem('user');
     if (stored) setUserInfo(JSON.parse(stored));
+    const refreshUnreadCount = () => getUnreadCount().then(setUnreadCount).catch(() => {});
     // 알림 개수 초기 로드
-    getUnreadCount().then(setUnreadCount).catch(() => {});
+    refreshUnreadCount();
+    window.addEventListener('notifications:updated', refreshUnreadCount);
     // 30초마다 갱신
-    const timer = setInterval(() => getUnreadCount().then(setUnreadCount).catch(() => {}), 30000);
-    return () => clearInterval(timer);
+    const timer = setInterval(refreshUnreadCount, 30000);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('notifications:updated', refreshUnreadCount);
+    };
   }, [router]);
 
   // 외부 클릭 시 드롭다운 닫기
@@ -70,10 +66,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     setUnreadCount(0);
   };
 
-  const handleMarkOne = async (id: number) => {
-    await markAsRead(id).catch(() => {});
-    setNotifications((prev) => prev.map((n) => n.notificationId === id ? { ...n, read: true } : n));
-    setUnreadCount((c) => Math.max(0, c - 1));
+  const handleOpenNotification = async (notification: NotificationItem) => {
+    if (!notification.read) {
+      await markAsRead(notification.notificationId).catch(() => {});
+      setNotifications((prev) => prev.map((n) => n.notificationId === notification.notificationId ? { ...n, read: true } : n));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    }
+    setNotiOpen(false);
+    router.push(`/notifications?notificationId=${notification.notificationId}`);
   };
 
   const handleLogout = () => {
@@ -94,10 +94,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <button onClick={openNoti}
               aria-label={`알림 ${unreadCount > 0 ? `(읽지 않은 알림 ${unreadCount}개)` : ''}`}
               className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
+              <span aria-hidden className="text-lg leading-none">🔔</span>
+              <span className="sr-only">알림</span>
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -107,9 +105,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
             {/* 알림 드롭다운 */}
             {notiOpen && (
-              <div className="absolute right-0 top-10 w-80 bg-white border border-black/[0.08] rounded-xl shadow-lg z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06]">
-                  <span className="text-xs font-bold text-gray-700">알림</span>
+              <div className="absolute right-0 top-10 w-[min(20rem,calc(100vw-1.5rem))] bg-white dark:bg-neutral-950 border border-black/[0.08] dark:border-white/10 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06] dark:border-white/10">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-100">알림</span>
                   {unreadCount > 0 && (
                     <button onClick={handleMarkAllRead}
                       className="text-[10px] text-[#185FA5] hover:underline font-semibold">
@@ -121,24 +119,31 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   {notifications.length === 0 ? (
                     <div className="py-8 text-center text-xs text-gray-400">알림이 없습니다.</div>
                   ) : (
-                    notifications.map((n) => (
-                      <div key={n.notificationId}
-                        onClick={() => !n.read && handleMarkOne(n.notificationId)}
-                        className={`flex items-start gap-3 px-4 py-3 border-b border-black/[0.04] cursor-pointer transition-colors ${n.read ? 'bg-white' : 'bg-blue-50/60 hover:bg-blue-50'}`}>
-                        <span className="text-base shrink-0 mt-0.5">{NOTI_ICON[n.type] ?? '🔔'}</span>
+                    notifications.slice(0, 5).map((n) => (
+                      <button key={n.notificationId}
+                        onClick={() => handleOpenNotification(n)}
+                        className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-black/[0.04] dark:border-white/10 transition-colors ${n.read ? 'bg-white dark:bg-neutral-950' : 'bg-blue-50/60 hover:bg-blue-50 dark:bg-blue-950/40 dark:hover:bg-blue-950/60'}`}>
+                        <span className="text-base shrink-0 mt-0.5">{getNotificationIcon(n.type)}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs leading-snug ${n.read ? 'text-gray-500' : 'text-gray-800 font-semibold'}`}>
-                            {n.message}
+                          <p className={`text-xs leading-snug truncate ${n.read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-semibold'}`}>
+                            {getNotificationTitle(n)}
                           </p>
                           <p className="text-[10px] text-gray-400 mt-0.5">
-                            {new Date(n.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {formatNotificationDate(n.createdAt, 'short')}
                           </p>
                         </div>
                         {!n.read && <span className="w-2 h-2 bg-[#185FA5] rounded-full shrink-0 mt-1.5" />}
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
+                <Link
+                  href="/notifications"
+                  onClick={() => setNotiOpen(false)}
+                  className="block px-4 py-2.5 text-center text-xs font-bold text-[#185FA5] bg-gray-50 hover:bg-gray-100 dark:bg-neutral-900 dark:hover:bg-neutral-800"
+                >
+                  전체보기
+                </Link>
               </div>
             )}
           </div>

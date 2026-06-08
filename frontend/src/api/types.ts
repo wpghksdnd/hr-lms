@@ -110,6 +110,16 @@ export interface MyCourseVideoStatus {
   isCompleted: boolean;
 }
 
+export interface AssessmentSummary {
+  quizId?: number;
+  examId?: number;
+  title: string;
+  passScore: number;
+  questionCount: number;
+  completed: boolean;
+  score: number | null;
+}
+
 export interface MyCourseDetailResponse {
   enrollmentId: number;
   courseId: number;
@@ -122,6 +132,8 @@ export interface MyCourseDetailResponse {
   courseDeadline: string | null;
   enrolledAt: string;
   completedAt: string | null;
+  quiz: AssessmentSummary | null;
+  exam: AssessmentSummary | null;
   videos: MyCourseVideoStatus[];
 }
 
@@ -225,10 +237,21 @@ export interface NoticeDetail {
 }
 
 // 알림
+export type NotificationType =
+  | 'NEW_NOTICE'
+  | 'COURSE_STARTED'
+  | 'ENROLLMENT_APPROVED'
+  | 'ENROLLMENT_REJECTED'
+  | 'COURSE_DEADLINE'
+  | 'CERTIFICATE_ISSUED'
+  | 'SYSTEM';
+
 export interface NotificationItem {
   notificationId: number;
-  type: string;  // ENROLLMENT_APPROVED | ENROLLMENT_REJECTED | CERTIFICATE_ISSUED | COURSE_DEADLINE | COURSE_STARTED | SYSTEM
+  type: NotificationType;
+  title: string;
   message: string;
+  content: string;
   enrollmentId: number | null;
   read: boolean;
   createdAt: string;

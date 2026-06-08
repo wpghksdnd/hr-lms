@@ -1,5 +1,9 @@
 package com.hr.backend.domain.enrollment.service;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import com.hr.backend.domain.course.entity.CourseRound;
 import com.hr.backend.domain.course.repository.CourseRoundRepository;
 import com.hr.backend.domain.enrollment.dto.CertificateActionResponse;
@@ -22,11 +26,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +63,9 @@ public class CertificateWorkflowService {
 
     @Value("${certificate.issuer-name:인사하는 인사팀}")
     private String issuerName;
+
+    @Value("${certificate.verify-base-url:http://localhost:8080/api/certificate/download}")
+    private String certificateVerifyBaseUrl;
 
     public void triggerCompletionWorkflow(Enrollment enrollment) {
         if (enrollment.getStatus() != Enrollment.Status.DONE) {
@@ -89,36 +98,37 @@ public class CertificateWorkflowService {
         }
     }
 
-        @Transactional
-        public CertificateGenerateResponse generateCertificateForRound(Long userId, Long roundId) {
+    @Transactional
+    public CertificateGenerateResponse generateCertificateForRound(Long userId, Long roundId) {
         if (userId == null || roundId == null) {
             throw new IllegalArgumentException("userId와 roundId는 필수입니다.");
         }
 
         User user = userRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         CourseRound round = courseRoundRepository.findById(roundId)
-            .orElseThrow(() -> new IllegalArgumentException("차수를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("차수를 찾을 수 없습니다."));
 
         Certificate existing = certificateRepository
-            .findByUser_UserIdAndRound_RoundId(userId, roundId)
-            .orElse(null);
+                .findByUser_UserIdAndRound_RoundId(userId, roundId)
+                .orElse(null);
         if (existing != null) {
             return CertificateGenerateResponse.builder()
-                .success(true)
-                .certificateId(existing.getCertificateId())
-                .pdfPath(existing.getFileUrl())
-                .certificateNo(buildCertificateNo(existing))
-                .message("이미 발급된 이수증입니다.")
-                .build();
+                    .success(true)
+                    .certificateId(existing.getCertificateId())
+                    .pdfPath(existing.getFileUrl())
+                    .certificateNo(buildCertificateNo(existing))
+                    .message("이미 발급된 이수증입니다.")
+                    .build();
         }
 
         Certificate saved = certificateRepository.save(
-            Certificate.builder().user(user).round(round).fileUrl("").build());
+                Certificate.builder().user(user).round(round).fileUrl("").build());
 
         String certNo = buildCertificateNo(saved);
         String currentYear = String.valueOf(Year.now().getValue());
+        String verificationUrl = buildVerificationUrl(saved);
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("certificateNo", certNo);
@@ -130,6 +140,8 @@ public class CertificateWorkflowService {
         vars.put("trainingHours", resolveTrainingHours(round));
         vars.put("issuedAt", saved.getIssuedAt().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
         vars.put("issuerName", issuerName);
+        vars.put("verificationUrl", verificationUrl);
+        vars.put("qrCodeImage", generateQrCodeDataUri(verificationUrl));
 
         String fileName = "cert_" + saved.getCertificateId() + ".pdf";
         certificatePdfService.generatePdf(vars, fileName, currentYear);
@@ -146,13 +158,13 @@ public class CertificateWorkflowService {
                         user, round.getCourse().getTitle(), e.getEnrollmentId()));
 
         return CertificateGenerateResponse.builder()
-            .success(true)
-            .certificateId(saved.getCertificateId())
-            .pdfPath(storedPath)
-            .certificateNo(certNo)
-            .message("이수증이 생성되었습니다.")
-            .build();
-        }
+                .success(true)
+                .certificateId(saved.getCertificateId())
+                .pdfPath(storedPath)
+                .certificateNo(certNo)
+                .message("이수증이 생성되었습니다.")
+                .build();
+    }
 
     @Transactional
     public CertificateGenerateResponse generateCertificate(CertificateGenerateRequest request) {
@@ -205,6 +217,28 @@ public class CertificateWorkflowService {
         return Year.now().getValue() + "-"
                 + certificate.getRound().getCourse().getCourseId() + "-"
                 + String.format("%04d", certificate.getCertificateId());
+    }
+
+    private String buildVerificationUrl(Certificate certificate) {
+        String baseUrl = certificateVerifyBaseUrl == null || certificateVerifyBaseUrl.isBlank()
+                ? "http://localhost:8080/api/certificate/download"
+                : certificateVerifyBaseUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + "/" + certificate.getCertificateId();
+    }
+
+    private String generateQrCodeDataUri(String text) {
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            BitMatrix bitMatrix = writer.encode(text, BarcodeFormat.QR_CODE, 150, 150);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(bitMatrix, "PNG", out);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(out.toByteArray());
+        } catch (Exception e) {
+            throw new CertificateGenerationException("QR 코드 생성 실패: " + e.getMessage(), e);
+        }
     }
 
     private String resolveDepartmentName(User user) {

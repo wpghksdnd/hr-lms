@@ -2,9 +2,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { getMyCourses, getMyCourseDetail, startVideoWatch, endVideoWatch, submitFeedback, getFeedback } from '@/api/myLearning';
-import { getQuiz, submitQuiz } from '@/api/assessment';
+import { getQuiz, submitQuiz, getExam, submitExam } from '@/api/assessment';
 import { createQuestion, getMyQuestions } from '@/api/qna';
-import type { MyCourseResponse, MyCourseDetailResponse, MyCourseVideoStatus, AssessmentResponse, FeedbackResponse, QnaResponse } from '@/api/types';
+import type { MyCourseResponse, MyCourseDetailResponse, MyCourseVideoStatus, AssessmentResponse, FeedbackResponse, QnaResponse, QuestionItem } from '@/api/types';
 
 type Tracking = {
   playing: boolean;
@@ -69,6 +69,16 @@ export default function LearningPage() {
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizResult, setQuizResult] = useState<{ score: number; passed: boolean } | null>(null);
   const [quizSubmitting, setQuizSubmitting] = useState(false);
+  const [quizRetryLectureId, setQuizRetryLectureId] = useState<number | null>(null);
+
+  // 최종 시험 모달
+  const [examModal, setExamModal] = useState<{ exam: AssessmentResponse } | null>(null);
+  const [examAnswers, setExamAnswers] = useState<Record<number, number>>({});
+  const [examResult, setExamResult] = useState<{ score: number; passed: boolean } | null>(null);
+  const [examSubmitting, setExamSubmitting] = useState(false);
+  const [examLoading, setExamLoading] = useState(false);
+  const [examCurrentIndex, setExamCurrentIndex] = useState(0);
+  const [examShowUnansweredOnly, setExamShowUnansweredOnly] = useState(false);
 
   // 피드백 모달
   const [feedbackModal, setFeedbackModal] = useState<{ enrollmentId: number } | null>(null);
@@ -106,6 +116,10 @@ export default function LearningPage() {
     if (!selectedCourseId) return;
     setLoadingDetail(true);
     setFeedbackDone(null); setFeedbackModal(null);
+    setQuizRetryLectureId(null);
+    setQuizModal(null);
+    setQuizResult(null);
+    setQuizAnswers({});
     getMyCourseDetail(selectedCourseId)
       .then((d) => {
         setDetail(d);
@@ -320,6 +334,7 @@ export default function LearningPage() {
       if (quiz && quiz.questions.length > 0) {
         setQuizAnswers({});
         setQuizResult(null);
+        setQuizRetryLectureId(null);
         setQuizModal({ quiz, lectureId });
       }
     } catch { /* 퀴즈 없으면 무시 */ }
@@ -333,8 +348,61 @@ export default function LearningPage() {
     try {
       const result = await submitQuiz(quizModal.quiz.id, quizAnswers);
       setQuizResult({ score: result.score, passed: result.passed });
+      if (result.passed && selectedCourseId) {
+        setQuizRetryLectureId(null);
+        getMyCourseDetail(selectedCourseId).then(setDetail).catch(() => {});
+      } else {
+        setQuizRetryLectureId(quizModal.lectureId);
+      }
     } catch { alert('퀴즈 제출에 실패했습니다.'); }
     finally { setQuizSubmitting(false); }
+  };
+
+  const handleCloseQuizModal = () => {
+    if (quizModal && !quizResult?.passed) {
+      setQuizRetryLectureId(quizModal.lectureId);
+    }
+    setQuizModal(null);
+  };
+
+  const handleOpenExam = async () => {
+    if (!selectedCourseId || !canTakeExam) return;
+    setExamLoading(true);
+    try {
+      const exam = await getExam(selectedCourseId);
+      setExamAnswers({});
+      setExamResult(null);
+      setExamCurrentIndex(0);
+      setExamShowUnansweredOnly(false);
+      setExamModal({ exam });
+    } catch {
+      alert('시험 정보를 불러오지 못했습니다.');
+    } finally {
+      setExamLoading(false);
+    }
+  };
+
+  const handleExamSubmit = async () => {
+    if (!examModal) return;
+
+    const unansweredCount = examModal.exam.questions.filter((q) => examAnswers[q.questionId] === undefined).length;
+    if (unansweredCount > 0) {
+      const ok = confirm(`미응답 ${unansweredCount}문항이 있습니다. 그래도 제출하시겠습니까?`);
+      if (!ok) return;
+    }
+
+    setExamSubmitting(true);
+    try {
+      const result = await submitExam(examModal.exam.id, examAnswers);
+      setExamResult({ score: result.score, passed: result.passed });
+      if (selectedCourseId) {
+        getMyCourseDetail(selectedCourseId).then(setDetail).catch(() => {});
+      }
+    } catch {
+      alert('시험 제출에 실패했습니다.');
+    } finally {
+      setExamSubmitting(false);
+    }
   };
 
   // ── 비디오 이벤트 핸들러 ─────────────────────────────────────
@@ -431,6 +499,35 @@ export default function LearningPage() {
   const currentIdx = sortedVideos.findIndex((v) => v.videoId === currentVideo?.videoId);
   const nextVideo = currentIdx >= 0 && currentIdx < sortedVideos.length - 1 ? sortedVideos[currentIdx + 1] : null;
   const canGoNext = nextVideo !== null && canOpenVideo(currentIdx + 1);
+  const allVideosCompleted = sortedVideos.length > 0 && sortedVideos.every((v) => v.isCompleted);
+  const allLecturesCompleted = (detail?.currentProgress ?? 0) >= 100 || detail?.currentStatus === 'DONE';
+  const quizCompleted = detail?.quiz ? Boolean(detail.quiz.completed) : true;
+  const learningCompleted = allLecturesCompleted || quizCompleted;
+  const examPassed = Boolean(detail?.exam?.completed);
+  const canTakeExam = allVideosCompleted && learningCompleted && !examPassed;
+  const retryQuizVideo = quizRetryLectureId
+    ? sortedVideos.find((video) => video.lectureId === quizRetryLectureId)
+    : null;
+  const canRetryQuiz = quizRetryLectureId !== null && !quizCompleted;
+  const examQuestions = [...(examModal?.exam.questions ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+  const currentExamQuestion = examQuestions[examCurrentIndex] ?? null;
+  const examAnsweredCount = examQuestions.filter((q) => examAnswers[q.questionId] !== undefined).length;
+  const examUnansweredQuestions = examQuestions.filter((q) => examAnswers[q.questionId] === undefined);
+  const examStatusQuestions = examShowUnansweredOnly ? examUnansweredQuestions : examQuestions;
+
+  const getExamChoiceLabel = (question: QuestionItem) => {
+    const selectedChoiceId = examAnswers[question.questionId];
+    if (selectedChoiceId === undefined) return '미응답';
+
+    const choices = [...question.choices].sort((a, b) => a.sortOrder - b.sortOrder);
+    const selectedIndex = choices.findIndex((choice) => choice.choiceId === selectedChoiceId);
+    return selectedIndex >= 0 ? `${selectedIndex + 1}번` : '미응답';
+  };
+
+  const moveToExamQuestion = (questionId: number) => {
+    const nextIndex = examQuestions.findIndex((q) => q.questionId === questionId);
+    if (nextIndex >= 0) setExamCurrentIndex(nextIndex);
+  };
 
   // ── 강의 선택 ────────────────────────────────────────────────
   const selectVideo = (video: MyCourseVideoStatus, idx: number) => {
@@ -497,7 +594,7 @@ export default function LearningPage() {
                         다시 풀기
                       </button>
                     )}
-                    <button onClick={() => setQuizModal(null)}
+                    <button onClick={handleCloseQuizModal}
                       className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50">
                       닫기
                     </button>
@@ -512,7 +609,7 @@ export default function LearningPage() {
                         <span className="text-[#185FA5] mr-1">Q{qi + 1}.</span>{q.questionText}
                       </p>
                       <div className="flex flex-col gap-1.5">
-                        {q.choices.map((c) => {
+                        {[...q.choices].sort((a, b) => a.sortOrder - b.sortOrder).map((c, ci) => {
                           const selected = quizAnswers[q.questionId] === c.choiceId;
                           return (
                             <button key={c.choiceId}
@@ -520,7 +617,7 @@ export default function LearningPage() {
                               onClick={() => setQuizAnswers((prev) => ({ ...prev, [q.questionId]: c.choiceId }))}
                               className={`w-full flex items-center gap-2.5 p-2.5 border rounded-lg transition-all text-left ${selected ? 'border-[#185FA5] bg-[#E6F1FB]' : 'border-gray-200 hover:bg-gray-50'}`}>
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0 ${selected ? 'bg-[#185FA5] text-white border-[#185FA5]' : 'border-gray-300 text-gray-400'}`}>
-                                {c.sortOrder}
+                                {ci + 1}
                               </div>
                               <span className={`text-xs ${selected ? 'text-[#185FA5] font-bold' : 'text-gray-600'}`}>{c.choiceText}</span>
                             </button>
@@ -535,6 +632,164 @@ export default function LearningPage() {
                     {quizSubmitting ? '제출 중...' : `답안 제출 (${Object.keys(quizAnswers).length}/${quizModal.quiz.questions.length})`}
                   </button>
                 </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 최종 시험 모달 ── */}
+      {examModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-y-auto shadow-xl">
+            <div className="sticky top-0 bg-white px-6 py-4 border-b border-black/[0.06] flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-[#185FA5] uppercase tracking-wide">최종 시험</p>
+                <h2 className="text-sm font-black text-[#111]">{examModal.exam.title}</h2>
+              </div>
+              {!examResult && (
+                <span className="text-xs text-gray-400">{examAnsweredCount}/{examQuestions.length} 답변</span>
+              )}
+            </div>
+
+            <div className="px-6 py-4">
+              {examResult ? (
+                <div className="text-center py-6 flex flex-col items-center gap-3">
+                  <div className="text-5xl">{examResult.passed ? '🎉' : '😢'}</div>
+                  <p className="text-xl font-black text-[#185FA5]">{examResult.score}점</p>
+                  <p className={`text-sm font-bold ${examResult.passed ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {examResult.passed ? '합격! 이수 조건을 완료했습니다.' : `불합격 (합격 기준: ${examModal.exam.passScore}점)`}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    {!examResult.passed && (
+                      <button onClick={() => { setExamAnswers({}); setExamResult(null); setExamCurrentIndex(0); setExamShowUnansweredOnly(false); }}
+                        className="px-4 py-2 text-xs font-bold bg-[#185FA5] text-white rounded-xl hover:bg-[#144f8b]">
+                        다시 응시하기
+                      </button>
+                    )}
+                    <button onClick={() => setExamModal(null)}
+                      className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50">
+                      닫기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_240px] gap-4">
+                  <div className="flex flex-col gap-4">
+                    {currentExamQuestion && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-bold text-gray-700">
+                          <span className="text-[#185FA5] mr-1">Q{examCurrentIndex + 1}.</span>{currentExamQuestion.questionText}
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          {[...currentExamQuestion.choices].sort((a, b) => a.sortOrder - b.sortOrder).map((c, ci) => {
+                            const selected = examAnswers[currentExamQuestion.questionId] === c.choiceId;
+                            return (
+                              <div key={c.choiceId}
+                                onClick={() => setExamAnswers((prev) => ({ ...prev, [currentExamQuestion.questionId]: c.choiceId }))}
+                                className={`flex items-center gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-all ${selected ? 'border-[#185FA5] bg-[#E6F1FB]' : 'border-gray-200 hover:bg-gray-50'}`}>
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0 ${selected ? 'bg-[#185FA5] text-white border-[#185FA5]' : 'border-gray-300 text-gray-400'}`}>
+                                  {ci + 1}
+                                </div>
+                                <span className={`text-xs ${selected ? 'text-[#185FA5] font-bold' : 'text-gray-600'}`}>{c.choiceText}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                      {examCurrentIndex > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setExamCurrentIndex((prev) => Math.max(0, prev - 1))}
+                          className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50"
+                        >
+                          이전
+                        </button>
+                      ) : <span />}
+
+                      {examCurrentIndex < examQuestions.length - 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => setExamCurrentIndex((prev) => Math.min(examQuestions.length - 1, prev + 1))}
+                          className="px-4 py-2 text-xs font-bold bg-[#185FA5] text-white rounded-xl hover:bg-[#144f8b]"
+                        >
+                          다음
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleExamSubmit}
+                          disabled={examSubmitting}
+                          className="px-4 py-2 text-xs font-bold bg-[#185FA5] text-white rounded-xl hover:bg-[#144f8b] disabled:bg-gray-300"
+                        >
+                          {examSubmitting ? '제출 중...' : '시험 제출'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <aside className="border border-black/[0.06] rounded-xl p-3 h-fit flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-[#111]">답안현황</h3>
+                      <span className="text-[11px] text-gray-400">{examAnsweredCount}/{examQuestions.length}</span>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+                      <input
+                        type="checkbox"
+                        checked={examShowUnansweredOnly}
+                        onChange={(e) => setExamShowUnansweredOnly(e.target.checked)}
+                        className="h-4 w-4 accent-[#185FA5]"
+                      />
+                      미응답만 보기
+                    </label>
+                    <div className="flex flex-col gap-1.5">
+                      {examStatusQuestions.length === 0 ? (
+                        <div className="py-5 text-center text-xs text-gray-400">미응답 문항이 없습니다.</div>
+                      ) : examStatusQuestions.map((question) => {
+                        const index = examQuestions.findIndex((q) => q.questionId === question.questionId);
+                        const answered = examAnswers[question.questionId] !== undefined;
+                        const current = index === examCurrentIndex;
+
+                        return (
+                          <button
+                            key={question.questionId}
+                            type="button"
+                            onClick={() => moveToExamQuestion(question.questionId)}
+                            className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                              current
+                                ? 'border-[#185FA5] bg-[#E6F1FB]'
+                                : answered
+                                  ? 'border-emerald-100 bg-emerald-50/70'
+                                  : 'border-gray-200 bg-gray-50'
+                            }`}
+                          >
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black ${
+                              current
+                                ? 'bg-[#185FA5] text-white'
+                                : answered
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'bg-gray-200 text-gray-500'
+                            }`}>
+                              {index + 1}
+                            </span>
+                            <span className={`flex-1 text-xs font-bold ${
+                              current
+                                ? 'text-[#185FA5]'
+                                : answered
+                                  ? 'text-emerald-700'
+                                  : 'text-gray-500'
+                            }`}>
+                              {getExamChoiceLabel(question)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </aside>
+                </div>
               )}
             </div>
           </div>
@@ -711,6 +966,24 @@ export default function LearningPage() {
                 </div>
               )}
 
+              {canRetryQuiz && quizRetryLectureId && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-bold text-amber-700">퀴즈 다시풀기 필요</span>
+                    <span className="text-xs text-amber-700/80">
+                      {retryQuizVideo?.title ?? '현재 단원'} 퀴즈를 통과해야 다음 단계로 진행할 수 있습니다.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => triggerQuiz(quizRetryLectureId)}
+                    className="shrink-0 px-4 py-2 bg-[#185FA5] hover:bg-[#144f8b] text-white text-xs font-bold rounded-lg transition-colors"
+                  >
+                    퀴즈 다시풀기
+                  </button>
+                </div>
+              )}
+
               {/* 다음 강의로 넘어가기 */}
               {nextVideo && (
                 <div className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
@@ -742,22 +1015,40 @@ export default function LearningPage() {
               )}
 
               {/* 모든 강의 완료 */}
-              {sortedVideos.length > 0 && sortedVideos.every((v) => v.isCompleted) && (
+              {allVideosCompleted && (
                 <div className="flex flex-col gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="text-xl">🎉</span>
                       <div>
                         <div className="text-sm font-bold text-emerald-700">모든 강의를 완료했습니다!</div>
-                        <div className="text-[11px] text-emerald-600">최종 시험에 도전해 이수를 완료하세요.</div>
+                        <div className="text-[11px] text-emerald-600">
+                          {examPassed
+                            ? '최종 시험에 합격했습니다.'
+                            : quizCompleted
+                              ? '최종 시험에 도전해 이수를 완료하세요.'
+                              : '퀴즈 합격 후 최종 시험에 응시할 수 있습니다.'}
+                        </div>
                       </div>
                     </div>
-                    <Link
-                      href={`/exam?courseId=${selectedCourseId}`}
-                      className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors"
-                    >
-                      시험 응시하기 →
-                    </Link>
+                    {canTakeExam ? (
+                      <button
+                        type="button"
+                        onClick={handleOpenExam}
+                        disabled={examLoading}
+                        className="shrink-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        {examLoading ? '시험 불러오는 중...' : '시험 응시하기 →'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="shrink-0 px-4 py-2 bg-gray-200 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed"
+                      >
+                        {examPassed ? '시험 합격 완료' : '시험 응시하기'}
+                      </button>
+                    )}
                   </div>
                   {/* 피드백 — 수강 완료(DONE) 상태일 때만 표시 */}
                   {detail?.currentStatus === 'DONE' && (

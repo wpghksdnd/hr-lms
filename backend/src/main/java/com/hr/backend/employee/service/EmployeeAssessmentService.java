@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +23,7 @@ public class EmployeeAssessmentService {
     private final QuizRepository quizRepository;
     private final ExamRepository examRepository;
     private final AttemptRepository attemptRepository;
+    private final AttemptAnswerRepository attemptAnswerRepository;
     private final CurrentUserProvider currentUserProvider;
     private final EmployeeLearningCompletionService completionService;
 
@@ -41,8 +43,9 @@ public class EmployeeAssessmentService {
     public AttemptResponse submitQuiz(Long quizId, AnswerSubmitRequest request) {
         User user = currentUserProvider.getCurrentUser();
         Quiz quiz = quizRepository.findById(quizId).orElseThrow(() -> new ResourceNotFoundException("Quiz", "quizId", quizId));
-        int score = calculateScore(quiz.getQuestions(), request.getAnswers());
-        Attempt attempt = attemptRepository.save(Attempt.builder().user(user).quiz(quiz).score(score).passScore(quiz.getPassScore()).build());
+        GradeResult result = grade(quiz.getQuestions(), request.getAnswers());
+        Attempt attempt = attemptRepository.save(Attempt.builder().user(user).quiz(quiz).score(result.score()).passScore(quiz.getPassScore()).build());
+        saveAttemptAnswers(attempt, result.answers());
         if (attempt.isPassed()) completionService.completeLectureIfReady(user, quiz.getLecture());
         return toAttemptResponse("QUIZ", quizId, attempt);
     }
@@ -51,8 +54,9 @@ public class EmployeeAssessmentService {
     public AttemptResponse submitExam(Long examId, AnswerSubmitRequest request) {
         User user = currentUserProvider.getCurrentUser();
         Exam exam = examRepository.findById(examId).orElseThrow(() -> new ResourceNotFoundException("Exam", "examId", examId));
-        int score = calculateScore(exam.getQuestions(), request.getAnswers());
-        Attempt attempt = attemptRepository.save(Attempt.builder().user(user).exam(exam).score(score).passScore(exam.getPassScore()).build());
+        GradeResult result = grade(exam.getQuestions(), request.getAnswers());
+        Attempt attempt = attemptRepository.save(Attempt.builder().user(user).exam(exam).score(result.score()).passScore(exam.getPassScore()).build());
+        saveAttemptAnswers(attempt, result.answers());
         if (attempt.isPassed()) completionService.recalculateEnrollmentProgress(user, exam.getCourse());
         return toAttemptResponse("EXAM", examId, attempt);
     }
@@ -64,23 +68,36 @@ public class EmployeeAssessmentService {
                 .toList();
     }
 
-    private int calculateScore(List<Question> questions, Map<Long, Long> answers) {
+    private record GradeResult(int score, List<AttemptAnswer.Draft> answers) {}
+
+    private GradeResult grade(List<Question> questions, Map<Long, Long> answers) {
         int score = 0;
+        List<AttemptAnswer.Draft> drafts = new ArrayList<>();
         for (Question q : questions) {
             Long selectedChoiceId = answers.get(q.getQuestionId());
-            if (selectedChoiceId == null) {
-                continue;
-            }
-            boolean correct = q.getChoices().stream()
-                    .anyMatch(c ->
-                            c.getChoiceId().equals(selectedChoiceId)
-                                    && c.isCorrect()
-                    );
+            Choice selectedChoice = selectedChoiceId == null ? null : q.getChoices().stream()
+                    .filter(c -> c.getChoiceId().equals(selectedChoiceId))
+                    .findFirst()
+                    .orElse(null);
+            boolean correct = selectedChoice != null && selectedChoice.isCorrect();
             if (correct) {
                 score += q.getScore();
             }
+            drafts.add(new AttemptAnswer.Draft(q, selectedChoice, correct));
         }
-        return Math.min(score, 100);
+        return new GradeResult(Math.min(score, 100), drafts);
+    }
+
+    private void saveAttemptAnswers(Attempt attempt, List<AttemptAnswer.Draft> drafts) {
+        List<AttemptAnswer> entities = drafts.stream()
+                .map(d -> AttemptAnswer.builder()
+                        .attempt(attempt)
+                        .question(d.question())
+                        .choice(d.choice())
+                        .correct(d.correct())
+                        .build())
+                .toList();
+        attemptAnswerRepository.saveAll(entities);
     }
 
     private AssessmentResponse toResponse(String type, Long id, String title, int passScore, List<Question> questions) {

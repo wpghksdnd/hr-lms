@@ -6,6 +6,11 @@ export async function getNotifications(): Promise<NotificationItem[]> {
   return res.data;
 }
 
+export async function getNotificationDetail(notificationId: number): Promise<NotificationItem> {
+  const res = await client.get<NotificationItem>(`/api/user/notifications/${notificationId}`);
+  return res.data;
+}
+
 export async function getUnreadCount(): Promise<number> {
   const res = await client.get<{ unreadCount: number }>('/api/user/notifications/count');
   return res.data.unreadCount;

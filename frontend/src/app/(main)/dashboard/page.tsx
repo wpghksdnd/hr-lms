@@ -21,17 +21,40 @@ export default function DashboardPage() {
         <p className="text-xs text-[#666]">진행 중인 필수 교육과 학습 현황을 실시간으로 안내해 드립니다.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: '수강 중', value: dashboard?.currentCoursesCount ?? 0, color: 'text-[#185FA5]' },
           { label: '수료 완료', value: dashboard?.completedCoursesCount ?? 0, color: 'text-emerald-600' },
           { label: '전체 이수율', value: `${Math.round(dashboard?.overallCompletionRate ?? 0)}%`, color: 'text-[#185FA5]' },
-        ].map((item) => (
-          <div key={item.label} className="bg-white border border-black/[0.06] rounded-xl p-4 text-center shadow-sm">
-            <div className={`text-2xl font-black ${item.color}`}>{item.value}</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">{item.label}</div>
-          </div>
-        ))}
+          { label: '미확인 알림', value: dashboard?.unreadNotificationsCount ?? 0, color: 'text-red-500', href: '/notifications', icon: '🔔' },
+        ].map((item) => {
+          const content = item.icon ? (
+            <div className="flex items-center justify-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-2xl shadow-inner ring-1 ring-amber-100">
+                {item.icon}
+              </span>
+              <span className="text-left">
+                <span className={`block text-xl font-black ${item.color}`}>({item.value})</span>
+                <span className="block text-[11px] text-gray-400 mt-0.5">{item.label}</span>
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className={`text-2xl font-black ${item.color}`}>{item.value}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">{item.label}</div>
+            </>
+          );
+
+          return item.href ? (
+            <Link key={item.label} href={item.href} className="bg-white border border-black/[0.06] rounded-xl p-4 text-center shadow-sm transition-colors hover:bg-gray-50">
+              {content}
+            </Link>
+          ) : (
+            <div key={item.label} className="bg-white border border-black/[0.06] rounded-xl p-4 text-center shadow-sm">
+              {content}
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">

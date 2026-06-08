@@ -60,6 +60,24 @@ public class NotificationService {
                 enrollmentId);
     }
 
+    /**
+     * 공지사항 등록 시 전체 직원에게 새 공지 알림을 생성한다.
+     */
+    @Transactional
+    public int notifyNewNotice(String title, String content) {
+        List<User> targets = userRepository.findAll().stream()
+                .filter(u -> !"ROLE_ADMIN".equals(u.getRole()) && u.isActive())
+                .toList();
+
+        String safeTitle = title == null ? "" : title.trim();
+        String safeContent = content == null ? "" : content.trim();
+        String message = "[공지] " + safeTitle + (safeContent.isBlank() ? "" : "\n" + safeContent);
+
+        targets.forEach(user -> create(user, NotificationType.NEW_NOTICE, message, null));
+        log.info("새 공지 알림 생성: {}명 발송, title={}", targets.size(), safeTitle);
+        return targets.size();
+    }
+
     // ──────────────────────────────────────────────────────────
     // 사용자 API용 조회/읽음 처리
     // ──────────────────────────────────────────────────────────
@@ -82,6 +100,14 @@ public class NotificationService {
                 .toList();
     }
 
+    /** 단건 알림 상세 조회 및 읽음 처리 */
+    @Transactional
+    public NotificationResponse getMyNotification(Long notificationId, Long userId) {
+        Notification notification = findMyNotification(notificationId, userId);
+        notification.markAsRead();
+        return new NotificationResponse(notification);
+    }
+
     /** 읽지 않은 알림 개수 */
     public Map<String, Long> getUnreadCount(Long userId) {
         long count = notificationRepository.countByUser_UserIdAndIsReadFalse(userId);
@@ -91,14 +117,7 @@ public class NotificationService {
     /** 단건 읽음 처리 */
     @Transactional
     public void markAsRead(Long notificationId, Long userId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
-
-        if (!notification.getUser().getUserId().equals(userId)) {
-            throw new IllegalStateException("본인의 알림만 읽음 처리할 수 있습니다.");
-        }
-
-        notification.markAsRead();
+        findMyNotification(notificationId, userId).markAsRead();
     }
 
     /** 전체 읽음 처리 */
@@ -160,5 +179,16 @@ public class NotificationService {
                 .build();
         notificationRepository.save(n);
         log.debug("알림 생성: userId={}, type={}", user.getUserId(), type);
+    }
+
+    private Notification findMyNotification(Long notificationId, Long userId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
+
+        if (!notification.getUser().getUserId().equals(userId)) {
+            throw new IllegalStateException("본인의 알림만 조회할 수 있습니다.");
+        }
+
+        return notification;
     }
 }
