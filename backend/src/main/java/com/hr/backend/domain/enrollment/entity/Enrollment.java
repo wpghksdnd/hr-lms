@@ -82,13 +82,12 @@ public class Enrollment {
         if (progress > 0 && this.status == Status.NOT_STARTED) {
             this.status = Status.IN_PROGRESS;
         }
-        if (progress >= 100) {
-            this.status      = Status.DONE;
-            this.completedAt = LocalDateTime.now();
-        }
     }
 
     public void changeStatus(Status status) {
         this.status = status;
+        if (status == Status.DONE && this.completedAt == null) {
+            this.completedAt = LocalDateTime.now();
+        }
     }
 }

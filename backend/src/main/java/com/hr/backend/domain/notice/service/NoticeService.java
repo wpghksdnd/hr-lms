@@ -4,6 +4,7 @@ import com.hr.backend.admin.dto.NoticeRequest;
 import com.hr.backend.admin.dto.NoticeResponse;
 import com.hr.backend.domain.notice.entity.Notice;
 import com.hr.backend.domain.notice.repository.NoticeRepository;
+import com.hr.backend.domain.notification.service.NotificationService;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class NoticeService {
 
     private final NoticeRepository noticeRepository;
     private final UserRepository   userRepository;
+    private final NotificationService notificationService;
 
     public List<NoticeResponse> getAll() {
         return noticeRepository.findAllWithAuthor().stream()
@@ -43,7 +45,9 @@ public class NoticeService {
                 .content(req.getContent())
                 .author(author)
                 .build();
-        return new NoticeResponse(noticeRepository.save(notice));
+        Notice saved = noticeRepository.save(notice);
+        notificationService.notifyNewNotice(saved.getTitle(), saved.getContent());
+        return new NoticeResponse(saved);
     }
 
     @Transactional

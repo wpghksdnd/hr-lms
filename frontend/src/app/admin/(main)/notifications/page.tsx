@@ -4,11 +4,12 @@ import { broadcastNotification, getAdminNotifications, getEmployees } from '@/ap
 import type { NotificationItem } from '@/api/types';
 
 const TYPE_LABEL: Record<string, string> = {
+  NEW_NOTICE:           '📢 신규 공지',
   ENROLLMENT_APPROVED:  '✅ 수강 승인',
   ENROLLMENT_REJECTED:  '❌ 수강 반려',
-  CERTIFICATE_ISSUED:   '🏅 이수증 발급',
-  COURSE_DEADLINE:      '⏰ 수강 마감',
-  COURSE_STARTED:       '📚 강좌 시작',
+  CERTIFICATE_ISSUED:   '🏆 이수증 발급',
+  COURSE_DEADLINE:      '📅 수강 마감',
+  COURSE_STARTED:       '🎓 강좌 시작',
   SYSTEM:               '🔔 시스템',
 };
 

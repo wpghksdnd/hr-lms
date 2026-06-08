@@ -38,7 +38,33 @@ public class MyCourseResponse {
         private LocalDate courseDeadline;
         private LocalDateTime enrolledAt;
         private LocalDateTime completedAt;
+        private QuizSummary quiz;
+        private ExamSummary exam;
         private List<MyCourseVideoWatchStatusDto> videos; // 영상별 시청 여부 포함
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    public static class QuizSummary {
+        private Long quizId;
+        private String title;
+        private Integer passScore;
+        private Integer questionCount;
+        private Boolean completed;
+        private Integer score;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    public static class ExamSummary {
+        private Long examId;
+        private String title;
+        private Integer passScore;
+        private Integer questionCount;
+        private Boolean completed;
+        private Integer score;
     }
 
     // 내 학습 영상별 시청 상태 (MyCourseDetailResponse 내부에 포함)

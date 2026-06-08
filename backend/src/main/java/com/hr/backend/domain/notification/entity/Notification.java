@@ -28,6 +28,7 @@ public class Notification {
 
     /**
      * 알림 유형.
+     * NEW_NOTICE          : 신규 공지
      * ENROLLMENT_APPROVED  : 수강 신청 승인
      * ENROLLMENT_REJECTED  : 수강 신청 반려
      * COURSE_STARTED       : 교육 시작
@@ -70,6 +71,7 @@ public class Notification {
     }
 
     public enum NotificationType {
+        NEW_NOTICE,
         ENROLLMENT_APPROVED,
         ENROLLMENT_REJECTED,
         COURSE_STARTED,

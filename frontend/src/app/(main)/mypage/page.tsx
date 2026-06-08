@@ -149,6 +149,13 @@ export default function MypagePage() {
 
       {/* 비밀번호 변경 */}
       <div className="bg-white p-5 border border-black/[0.06] rounded-xl shadow-sm flex flex-col gap-3 h-fit">
+        <Link
+          href="/notifications"
+          className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-[#185FA5] transition-colors hover:bg-blue-100"
+        >
+          <span>🔔 알림함</span>
+          <span>전체보기</span>
+        </Link>
         <h4 className="font-bold text-sm text-gray-800">🔒 비밀번호 변경</h4>
         <form onSubmit={handlePwChange} className="flex flex-col gap-3">
           <input type="password" placeholder="현재 비밀번호" required

@@ -43,6 +43,11 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getUnreadCount(getLoginUserId()));
     }
 
+    @GetMapping("/{notificationId}")
+    public ResponseEntity<NotificationResponse> getDetail(@PathVariable Long notificationId) {
+        return ResponseEntity.ok(notificationService.getMyNotification(notificationId, getLoginUserId()));
+    }
+
     @PutMapping("/{notificationId}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long notificationId) {
         notificationService.markAsRead(notificationId, getLoginUserId());

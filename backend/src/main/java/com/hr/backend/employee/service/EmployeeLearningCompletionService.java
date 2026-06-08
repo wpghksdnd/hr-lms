@@ -6,8 +6,9 @@ import com.hr.backend.domain.course.entity.LectureProgress;
 import com.hr.backend.domain.course.repository.LectureProgressRepository;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
-import com.hr.backend.domain.enrollment.service.CertificateWorkflowService;
 import com.hr.backend.domain.quiz.repository.AttemptRepository;
+import com.hr.backend.domain.quiz.repository.ExamRepository;
+import com.hr.backend.domain.enrollment.service.EnrollmentService;
 import com.hr.backend.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,8 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmployeeLearningCompletionService {
     private final LectureProgressRepository lectureProgressRepository;
     private final AttemptRepository attemptRepository;
+    private final ExamRepository examRepository;
     private final EnrollmentRepository enrollmentRepository;
-    private final CertificateWorkflowService certificateWorkflowService;
+    private final EnrollmentService enrollmentService;
 
     @Transactional
     public void completeLectureIfReady(User user, Lecture lecture) {
@@ -58,8 +60,7 @@ public class EmployeeLearningCompletionService {
                 .ifPresent(e -> {
                     e.updateProgress(progress);
                     if (canIssueCertificate(user, e)) {
-                        e.updateProgress(100);
-                        certificateWorkflowService.triggerCompletionWorkflow(e);
+                        enrollmentService.completeEnrollment(e.getEnrollmentId());
                     }
                 });
     }
@@ -75,8 +76,8 @@ public class EmployeeLearningCompletionService {
         long emptyLectures = course.getLectures().stream()
                 .filter(l -> l.getVideos().isEmpty()).count();
         boolean lecturesDone = totalLectures == 0 || (completedLectures + emptyLectures) >= totalLectures;
-        boolean examPassed = attemptRepository
-                .existsByUser_UserIdAndExam_Course_CourseIdAndPassedTrue(
+        boolean examPassed = !examRepository.existsByCourse_CourseId(course.getCourseId())
+                || attemptRepository.existsByUser_UserIdAndExam_Course_CourseIdAndPassedTrue(
                         user.getUserId(), course.getCourseId());
         return enrollment.getApprovalStatus() == Enrollment.ApprovalStatus.APPROVED
                 && lecturesDone && examPassed;

@@ -1,5 +1,8 @@
 package com.hr.backend;
 
+import com.hr.backend.domain.notification.entity.Notification;
+import com.hr.backend.domain.notification.entity.Notification.NotificationType;
+import com.hr.backend.domain.notification.repository.NotificationRepository;
 import com.hr.backend.domain.user.entity.Department;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.domain.user.repository.DepartmentRepository;
@@ -31,6 +34,7 @@ public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository       userRepository;
     private final DepartmentRepository departmentRepository;
+    private final NotificationRepository notificationRepository;
     private final PasswordEncoder      passwordEncoder;
 
     @Override
@@ -82,6 +86,46 @@ public class DataInitializer implements ApplicationRunner {
                     .build();
             userRepository.save(user);
             log.info("[DataInitializer] 일반 유저 테스트 계정 생성 완료");
+        }
+
+        User emp001 = userRepository.findByEmployeeNo("EMP001")
+                .orElseThrow(() -> new IllegalStateException("EMP001 테스트 계정을 찾을 수 없습니다."));
+        if (notificationRepository.countByUser_UserId(emp001.getUserId()) == 0) {
+            Notification courseStarted = Notification.builder()
+                    .user(emp001)
+                    .type(NotificationType.COURSE_STARTED)
+                    .message("[교육 시작] 산업안전보건 기본교육이 시작되었습니다.")
+                    .build();
+            courseStarted.markAsRead();
+
+            Notification courseDeadline = Notification.builder()
+                    .user(emp001)
+                    .type(NotificationType.COURSE_DEADLINE)
+                    .message("[마감 임박] 산업안전보건 기본교육 마감일이 다가오고 있습니다.")
+                    .build();
+            courseDeadline.markAsRead();
+
+            Notification certificateIssued = Notification.builder()
+                    .user(emp001)
+                    .type(NotificationType.CERTIFICATE_ISSUED)
+                    .message("[이수증 발급] 산업안전보건 기본교육 이수증이 발급되었습니다.")
+                    .build();
+            certificateIssued.markAsRead();
+
+            notificationRepository.save(Notification.builder()
+                    .user(emp001)
+                    .type(NotificationType.NEW_NOTICE)
+                    .message("[공지] 산업안전보건 기본교육 개설\n전 직원을 대상으로 하는 필수 교육이 개설되었습니다.")
+                    .build());
+            notificationRepository.save(Notification.builder()
+                    .user(emp001)
+                    .type(NotificationType.ENROLLMENT_APPROVED)
+                    .message("[수강 승인] 산업안전보건 기본교육 수강신청 승인 완료")
+                    .build());
+            notificationRepository.save(courseStarted);
+            notificationRepository.save(courseDeadline);
+            notificationRepository.save(certificateIssued);
+            log.info("[DataInitializer] EMP001 알림 테스트 데이터 5건 생성 완료");
         }
     }
 }
