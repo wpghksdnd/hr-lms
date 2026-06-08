@@ -165,7 +165,7 @@ export default function ChatbotPage() {
       {/* Flask 서버 안내 */}
       {serverDown && (
         <div className="mt-2 text-[11px] text-center text-gray-400">
-          AI 서버가 꺼져 있습니다. <code className="bg-gray-100 px-1 rounded">localhost:5000</code> 에서 Flask 서버를 실행해 주세요.
+          AI 서버가 꺼져 있습니다. 관리자에게 AI 서버 상태를 확인해 주세요.
         </div>
       )}
     </div>

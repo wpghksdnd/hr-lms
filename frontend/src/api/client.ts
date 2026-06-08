@@ -7,7 +7,8 @@ const client = axios.create({
 
 client.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
+    // localStorage 우선, 비밀번호 강제변경 진행 중에는 sessionStorage fallback 사용
+    const token = localStorage.getItem('token') ?? sessionStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -17,9 +18,12 @@ client.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // 이미 로그인 페이지면 리다이렉트 하지 않음 (무한루프 방지)
+      if (!window.location.pathname.startsWith('/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     // 백엔드가 { error: "..." } 형식으로 내려올 때 .message 로 통일
     if (error.response?.data) {

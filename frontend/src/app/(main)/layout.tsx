@@ -92,6 +92,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           {/* 알림 벨 */}
           <div className="relative" ref={notiRef}>
             <button onClick={openNoti}
+              aria-label={`알림 ${unreadCount > 0 ? `(읽지 않은 알림 ${unreadCount}개)` : ''}`}
               className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
               <span aria-hidden className="text-lg leading-none">🔔</span>
               <span className="sr-only">알림</span>

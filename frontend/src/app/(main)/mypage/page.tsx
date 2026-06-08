@@ -23,6 +23,7 @@ export default function MypagePage() {
   const [pwNext, setPwNext] = useState('');
   const [pwConfirm, setPwConfirm] = useState('');
   const [pwMsg, setPwMsg] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
     Promise.all([getMypage(), getMyCertificates(), getEnrollmentHistory()])
@@ -33,14 +34,21 @@ export default function MypagePage() {
 
   const handlePwChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pwNext !== pwConfirm) { setPwMsg('새 비밀번호가 일치하지 않습니다.'); return; }
-    if (pwNext.length < 8) { setPwMsg('비밀번호는 8자 이상이어야 합니다.'); return; }
+    if (pwNext !== pwConfirm) { setPwMsg('새 비밀번호가 일치하지 않습니다.'); setPwSuccess(false); return; }
+    if (pwNext.length < 8) { setPwMsg('비밀번호는 8자 이상이어야 합니다.'); setPwSuccess(false); return; }
+    if (!/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':,.<>?])/.test(pwNext)) {
+      setPwMsg('대문자·소문자·숫자·특수문자를 각 1개 이상 포함해야 합니다. (예: Emp12345!)');
+      setPwSuccess(false);
+      return;
+    }
     try {
       await changePassword({ currentPassword: pwCurrent, newPassword: pwNext });
       setPwMsg('비밀번호가 변경되었습니다.');
+      setPwSuccess(true);
       setPwCurrent(''); setPwNext(''); setPwConfirm('');
     } catch {
       setPwMsg('변경 실패. 현재 비밀번호를 확인해 주세요.');
+      setPwSuccess(false);
     }
   };
 
@@ -168,7 +176,7 @@ export default function MypagePage() {
             className="w-full p-2 text-xs border border-black/10 rounded-md outline-none focus:border-[#185FA5]"
             value={pwConfirm} onChange={(e) => { setPwConfirm(e.target.value); setPwMsg(''); }} />
           {pwMsg && (
-            <div className={`text-xs px-3 py-2 rounded-lg border ${pwMsg.includes('변경되었습니다') ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-500 bg-red-50 border-red-100'}`}>
+            <div className={`text-xs px-3 py-2 rounded-lg border ${pwSuccess ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-500 bg-red-50 border-red-100'}`}>
               {pwMsg}
             </div>
           )}
