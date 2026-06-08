@@ -6,17 +6,12 @@ import {
   EmployeeResponse, EmployeeRequest, Department,
 } from '@/api/adminApi';
 
+import { downloadBlob, getApiError } from '@/lib/utils';
+
 const EMPTY_FORM: EmployeeRequest = {
   employeeNo: '', name: '', email: '', departmentId: 0,
   position: '', empType: 0, phone: '', hireDate: '', role: 'ROLE_USER',
 };
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<EmployeeResponse[]>([]);

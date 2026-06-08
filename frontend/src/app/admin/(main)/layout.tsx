@@ -23,11 +23,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const token = localStorage.getItem('token');
     if (!token) { router.replace('/login'); return; }
     const stored = localStorage.getItem('user');
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user.role !== 'ROLE_ADMIN') { router.replace('/dashboard'); return; }
-      setAdminName(user.name ?? '관리자');
+    if (!stored) {
+      // user 정보 없으면 비정상 상태 — 로그인으로 이동
+      router.replace('/login');
+      return;
     }
+    const user = JSON.parse(stored);
+    if (user.role !== 'ROLE_ADMIN') { router.replace('/dashboard'); return; }
+    setAdminName(user.name ?? '관리자');
   }, [router]);
 
   const handleLogout = () => {

@@ -6,17 +6,12 @@ import {
   EnrollmentResponse, EnrollmentFilter, EnrollmentStatistics,
 } from '@/api/adminApi';
 import type { UserVideoProgress } from '@/api/types';
+import { downloadBlob } from '@/lib/utils';
 
 const STATUS_LABEL: Record<string, string> = { IN_PROGRESS: '수강 중', COMPLETED: '이수 완료', DONE: '이수 완료', DROPPED: '중도 취소', NOT_STARTED: '미시작' };
 const APPROVAL_LABEL: Record<string, string> = { PENDING: '승인 대기', APPROVED: '승인', REJECTED: '반려' };
 const APPROVAL_COLOR: Record<string, string> = { PENDING: 'bg-yellow-50 text-yellow-600', APPROVED: 'bg-green-50 text-green-600', REJECTED: 'bg-red-50 text-red-500' };
 const STATUS_COLOR: Record<string, string> = { IN_PROGRESS: 'bg-blue-50 text-blue-500', COMPLETED: 'bg-green-50 text-green-600', DONE: 'bg-green-50 text-green-600', DROPPED: 'bg-gray-100 text-gray-400' };
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
 
 // ── 영상 진도 모달 ─────────────────────────────────────────────────────────────
 function VideoProgressModal({ enrollment, onClose }: { enrollment: EnrollmentResponse; onClose: () => void }) {

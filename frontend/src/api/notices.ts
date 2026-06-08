@@ -2,7 +2,7 @@ import client from './client';
 import type { CommonResponse, Page, NoticeListItem, NoticeDetail } from './types';
 
 export async function getNotices(page = 0, size = 10): Promise<Page<NoticeListItem>> {
-  const res = await client.get<CommonResponse<Page<NoticeListItem>>>(`/api/user/notices?page=${page}&size=${size}`);
+  const res = await client.get<CommonResponse<Page<NoticeListItem>>>('/api/user/notices', { params: { page, size } });
   return res.data.data;
 }
 

@@ -515,14 +515,15 @@ export default function LearningPage() {
                         {q.choices.map((c) => {
                           const selected = quizAnswers[q.questionId] === c.choiceId;
                           return (
-                            <div key={c.choiceId}
+                            <button key={c.choiceId}
+                              type="button"
                               onClick={() => setQuizAnswers((prev) => ({ ...prev, [q.questionId]: c.choiceId }))}
-                              className={`flex items-center gap-2.5 p-2.5 border rounded-lg cursor-pointer transition-all ${selected ? 'border-[#185FA5] bg-[#E6F1FB]' : 'border-gray-200 hover:bg-gray-50'}`}>
+                              className={`w-full flex items-center gap-2.5 p-2.5 border rounded-lg transition-all text-left ${selected ? 'border-[#185FA5] bg-[#E6F1FB]' : 'border-gray-200 hover:bg-gray-50'}`}>
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold shrink-0 ${selected ? 'bg-[#185FA5] text-white border-[#185FA5]' : 'border-gray-300 text-gray-400'}`}>
                                 {c.sortOrder}
                               </div>
                               <span className={`text-xs ${selected ? 'text-[#185FA5] font-bold' : 'text-gray-600'}`}>{c.choiceText}</span>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

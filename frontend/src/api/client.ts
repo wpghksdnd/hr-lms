@@ -17,9 +17,12 @@ client.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // 이미 로그인 페이지면 리다이렉트 하지 않음 (무한루프 방지)
+      if (!window.location.pathname.startsWith('/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     // 백엔드가 { error: "..." } 형식으로 내려올 때 .message 로 통일
     if (error.response?.data) {

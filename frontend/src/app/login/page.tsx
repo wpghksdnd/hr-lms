@@ -5,13 +5,11 @@ import { login, changePassword } from '@/api/auth';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [empNo, setEmpNo] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [dept, setDept] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'info'>('login');
+  const [empNo, setEmpNo]         = useState('');
+  const [password, setPassword]   = useState('');
   const [loginError, setLoginError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading]   = useState(false);
 
   // 비밀번호 강제 변경 상태
   const [needsPwChange, setNeedsPwChange] = useState(false);
@@ -71,12 +69,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('사원 가입 신청이 완료되었습니다.');
-    setAuthMode('login');
-  };
-
   // 비밀번호 강제 변경 화면
   if (needsPwChange) {
     return (
@@ -114,10 +106,10 @@ export default function LoginPage() {
         </div>
 
         <div className="flex gap-1 mb-5 bg-gray-50 p-1 rounded-xl">
-          {(['login', 'signup'] as const).map((mode) => (
+          {(['login', 'info'] as const).map((mode) => (
             <button key={mode} onClick={() => { setAuthMode(mode); setLoginError(''); }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authMode === mode ? 'bg-white shadow-sm text-[#185FA5]' : 'text-gray-400'}`}>
-              {mode === 'login' ? '로그인' : '가입 신청'}
+              {mode === 'login' ? '로그인' : '계정 안내'}
             </button>
           ))}
         </div>
@@ -146,23 +138,22 @@ export default function LoginPage() {
             <div className="text-center text-xs text-gray-400 mt-2">초기 비밀번호는 사원번호와 동일합니다.</div>
           </form>
         ) : (
-          <form onSubmit={handleSignupSubmit} className="flex flex-col gap-3.5">
-            <input type="text" required placeholder="부여받은 사번 입력"
-              className="w-full p-2.5 text-xs border border-black/10 rounded-xl outline-none focus:border-[#185FA5] bg-gray-50/50"
-              value={empNo} onChange={(e) => setEmpNo(e.target.value)} />
-            <input type="text" required placeholder="실명 입력"
-              className="w-full p-2.5 text-xs border border-black/10 rounded-xl outline-none focus:border-[#185FA5] bg-gray-50/50"
-              value={name} onChange={(e) => setName(e.target.value)} />
-            <input type="text" required placeholder="예: 경영지원팀"
-              className="w-full p-2.5 text-xs border border-black/10 rounded-xl outline-none focus:border-[#185FA5] bg-gray-50/50"
-              value={dept} onChange={(e) => setDept(e.target.value)} />
-            <input type="password" required placeholder="비밀번호 설정"
-              className="w-full p-2.5 text-xs border border-black/10 rounded-xl outline-none focus:border-[#185FA5] bg-gray-50/50"
-              value={password} onChange={(e) => setPassword(e.target.value)} />
-            <button type="submit" className="w-full py-3 bg-[#185FA5] hover:bg-[#144f8b] text-white font-bold rounded-xl text-xs mt-1 transition-colors">
-              가입 신청
-            </button>
-          </form>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col gap-2">
+              <p className="text-xs font-bold text-[#185FA5]">계정 발급 안내</p>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                계정은 인사팀(관리자)을 통해 발급됩니다.<br />
+                사원번호와 초기 비밀번호를 받으셨다면 로그인 후 비밀번호를 변경해 주세요.
+              </p>
+            </div>
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col gap-1.5">
+              <p className="text-xs font-bold text-gray-600">로그인 방법</p>
+              <p className="text-xs text-gray-500 leading-relaxed">① 인사팀에서 사원번호 수령</p>
+              <p className="text-xs text-gray-500 leading-relaxed">② 초기 비밀번호 = 사원번호</p>
+              <p className="text-xs text-gray-500 leading-relaxed">③ 첫 로그인 시 비밀번호 강제 변경</p>
+            </div>
+            <p className="text-[11px] text-center text-gray-400">문의: 인사팀 담당자에게 연락해 주세요.</p>
+          </div>
         )}
       </div>
     </div>
