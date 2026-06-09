@@ -40,6 +40,9 @@ public class Notification {
     @Column(nullable = false, length = 30)
     private NotificationType type;
 
+    @Column(nullable = false, length = 100)
+    private String title;
+
     @Column(nullable = false, length = 500)
     private String message;
 
@@ -59,9 +62,10 @@ public class Notification {
     }
 
     @Builder
-    public Notification(User user, NotificationType type, String message, Long enrollmentId) {
+    public Notification(User user, NotificationType type, String title, String message, Long enrollmentId) {
         this.user         = user;
         this.type         = type;
+        this.title        = title;
         this.message      = message;
         this.enrollmentId = enrollmentId;
     }
