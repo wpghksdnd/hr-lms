@@ -43,6 +43,7 @@ pipeline {
                                                 DB_NAME=$(awk -F= '/^MYSQL_DATABASE=/{print $2; exit}' .env | tr -d '\r')
                                                 [ -n "$DB_NAME" ] || DB_NAME=lms
                                                 sed -i '/^SPRING_DATASOURCE_URL=/d' .env
+                                                echo >> .env
                                                 echo "SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8" >> .env
 
                                                 # CERTIFICATE_INTERNAL_API_TOKEN 누락 시 배포 중단
