@@ -100,15 +100,12 @@ public class CertificatePdfService {
     }
 
     private Iterable<String> candidateSystemFontPaths() {
-        // ⚠️ 순서 중요: 나중에 등록된 폰트가 같은 family 이름을 덮어씀
-        // OTF/CFF 폰트(NotoSansCJK .ttc)는 PDFBox 임베딩 불가 → 먼저 등록해서 TTF에 덮어써지도록
-        // NanumGothic.ttf(TTF, glyf 테이블 있음)를 마지막에 등록 → 최종 우선순위
+        // OTF/CFF 폰트(NotoSansCJK .ttc 등)는 PDFBox 임베딩 불가 → TTF 경로만 포함
+        // 클래스패스 폰트(fonts/NotoSansKR-Regular.ttf)가 먼저 등록되므로 여기는 최후 fallback
         ArrayList<String> candidates = new ArrayList<>(Arrays.asList(
-                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",  // OTF — 먼저(덮어써질 예정)
-                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  // OTF — 먼저(덮어써질 예정)
-                "C:/Windows/Fonts/malgun.ttf",                              // TTF
-                "C:/Windows/Fonts/NanumGothic.ttf",                        // TTF
-                "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"          // TTF — 마지막(최종 우선)
+                "C:/Windows/Fonts/malgun.ttf",
+                "C:/Windows/Fonts/NanumGothic.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
         ));
 
         String javaHome = System.getProperty("java.home");
