@@ -41,8 +41,9 @@ public class EmployeeCertificateController {
 
     @GetMapping("/{certificateId}/download")
     public ResponseEntity<Resource> downloadCertificate(@PathVariable Long certificateId) {
-        // 본인 문서 접근 검증
-        certificateService.getCertificateDetail(certificateId);
+        // 본인 문서 접근 검증 + PDF 없으면 온디맨드 생성
+        // (certificateWorkflowService 프록시 경유 → @Transactional REQUIRES_NEW 정상 적용)
+        certificateService.ensurePdfGenerated(certificateId);
 
         Resource resource = certificateWorkflowService.downloadCertificate(certificateId);
         String fileName = "certificate_" + certificateId + ".pdf";

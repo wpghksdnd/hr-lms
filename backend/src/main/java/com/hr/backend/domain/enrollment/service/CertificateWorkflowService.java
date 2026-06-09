@@ -214,15 +214,7 @@ public class CertificateWorkflowService {
         Certificate certificate = certificateRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("이수증을 찾을 수 없습니다."));
 
-        // PDF가 없으면 온디맨드 생성
-        if (certificate.getFileUrl() == null || certificate.getFileUrl().isBlank()) {
-            log.info("[이수증 다운로드] PDF 없음 — 온디맨드 생성 시작 certId={}", id);
-            generateCertificateForRound(certificate.getUser().getUserId(), certificate.getRound().getRoundId());
-            // 생성 후 최신 상태 재조회
-            certificate = certificateRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("이수증을 찾을 수 없습니다."));
-        }
-
+        // PDF가 없는 경우: 컨트롤러에서 ensurePdfGenerated() 를 먼저 호출해야 함
         if (certificate.getFileUrl() == null || certificate.getFileUrl().isBlank()) {
             throw new IllegalArgumentException("이수증 PDF 생성에 실패했습니다. 관리자에게 문의하세요.");
         }

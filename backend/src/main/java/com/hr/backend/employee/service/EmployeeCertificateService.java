@@ -56,6 +56,25 @@ public class EmployeeCertificateService {
                 .toList();
     }
 
+    /**
+     * PDF가 없는 이수증을 온디맨드 생성한다.
+     * certificateWorkflowService 는 Spring 프록시이므로 @Transactional(REQUIRES_NEW) 가 정상 적용된다.
+     */
+    @Transactional
+    public void ensurePdfGenerated(Long certificateId) {
+        Long userId = currentUserProvider.getCurrentUserId();
+        Certificate c = certificateRepository.findById(certificateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Certificate", "certificateId", certificateId));
+        if (!c.getUser().getUserId().equals(userId)) {
+            throw new ForbiddenException("문서에 대한 접근 권한이 없습니다.");
+        }
+        if (c.getFileUrl() == null || c.getFileUrl().isBlank()) {
+            log.info("[이수증 다운로드] PDF 없음 — 온디맨드 생성 시작 certId={}", certificateId);
+            certificateWorkflowService.generateCertificateForRound(
+                    c.getUser().getUserId(), c.getRound().getRoundId());
+        }
+    }
+
     public CertificateResponse getCertificateDetail(Long certificateId) {
         Certificate c = certificateRepository.findById(certificateId)
                 .orElseThrow(() -> new ResourceNotFoundException("Certificate", "certificateId", certificateId));
