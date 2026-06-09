@@ -80,7 +80,10 @@ public class CertificateWorkflowService {
             return;
         }
 
-        // n8n 웹훅이 설정되어 있으면 n8n 워크플로우 트리거 (n8n이 callback으로 /api/certificate/generate 호출)
+        // 항상 PDF 직접 생성 (n8n 콜백 의존 제거 — n8n은 알림 전용으로만 사용)
+        generateCertificateForRound(enrollment.getUser().getUserId(), enrollment.getRound().getRoundId());
+
+        // n8n 웹훅이 설정되어 있으면 알림 트리거 (실패해도 이수증 발급에는 영향 없음)
         if (triggerEnabled && n8nWebhookUrl != null && !n8nWebhookUrl.isBlank()) {
             Map<String, Object> payload = new HashMap<>();
             payload.put("requestId", UUID.randomUUID().toString());
@@ -97,15 +100,8 @@ public class CertificateWorkflowService {
                         .retrieve()
                         .toBodilessEntity();
             } catch (Exception e) {
-                log.error("[이수증] n8n 웹훅 호출 실패 — enrollmentId={}, url={}, error={}",
-                        enrollment.getEnrollmentId(), n8nWebhookUrl, e.getMessage());
-                log.warn("[이수증] n8n 실패로 PDF 직접 생성으로 폴백합니다 — enrollmentId={}",
-                        enrollment.getEnrollmentId());
-                generateCertificateForRound(enrollment.getUser().getUserId(), enrollment.getRound().getRoundId());
+                log.warn("[이수증] n8n 알림 실패 — enrollmentId={}: {}", enrollment.getEnrollmentId(), e.getMessage());
             }
-        } else {
-            // n8n 미설정 환경(로컬 개발 등): 해당 수강 차수 기준으로 PDF 직접 생성 fallback
-            generateCertificateForRound(enrollment.getUser().getUserId(), enrollment.getRound().getRoundId());
         }
     }
 
@@ -155,11 +151,11 @@ public class CertificateWorkflowService {
         vars.put("issuedAt", saved.getIssuedAt().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
         vars.put("issuerName", issuerName);
         vars.put("verificationUrl", verificationUrl);
-        vars.put("qrCodeImage", generateQrCodeDataUri(verificationUrl));
 
         // PDF 생성 실패 시 예외를 잡아 레코드는 보존 — 트랜잭션은 Certificate 저장까지만 커밋됨
         String storedPath = null;
         try {
+            vars.put("qrCodeImage", generateQrCodeDataUri(verificationUrl));
             String fileName = "cert_" + saved.getCertificateId() + ".pdf";
             certificatePdfService.generatePdf(vars, fileName, currentYear);
             storedPath = "/certificates/" + currentYear + "/" + fileName;
