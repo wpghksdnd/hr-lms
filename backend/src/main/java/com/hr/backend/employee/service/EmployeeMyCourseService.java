@@ -1,8 +1,10 @@
 package com.hr.backend.employee.service;
 
 import com.hr.backend.domain.course.entity.CourseVideo;
+import com.hr.backend.domain.course.entity.Lecture;
 import com.hr.backend.domain.course.entity.VideoWatchLog;
 import com.hr.backend.domain.course.entity.Course;
+import com.hr.backend.domain.course.repository.LectureRepository;
 import com.hr.backend.domain.course.repository.VideoWatchLogRepository;
 import com.hr.backend.domain.enrollment.entity.Enrollment;
 import com.hr.backend.domain.enrollment.repository.EnrollmentRepository;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 public class EmployeeMyCourseService {
 
     private final EnrollmentRepository enrollmentRepository;
+    private final LectureRepository lectureRepository;
     private final UserRepository userRepository;
     private final VideoWatchLogRepository videoWatchLogRepository;
     private final QuizRepository quizRepository;
@@ -62,13 +65,17 @@ public class EmployeeMyCourseService {
 
         Course c = e.getRound().getCourse();
 
+        // 직접 쿼리로 강의 목록 조회 — c.getLectures()는 JOIN FETCH로 로드된 Course 엔티티에서
+        // 컬렉션이 초기화되지 않을 수 있어 0건 반환 문제가 발생함
+        List<Lecture> lectures = lectureRepository.findAllByCourse_CourseIdOrderBySortOrderAsc(courseId);
+
         // 해당 강좌의 시청 기록을 한 번에 조회 (N+1 방지)
         Map<Long, VideoWatchLog> watchLogMap = videoWatchLogRepository
                 .findByUserIdAndCourseId(userId, courseId)
                 .stream()
                 .collect(Collectors.toMap(w -> w.getVideo().getVideoId(), w -> w));
 
-        List<MyCourseResponse.MyCourseVideoWatchStatusDto> videos = c.getLectures().stream()
+        List<MyCourseResponse.MyCourseVideoWatchStatusDto> videos = lectures.stream()
                 .flatMap(l -> l.getVideos().stream()
                         .map(vid -> Map.entry(l.getLectureId(), vid)))
                 .sorted(Comparator.comparingInt(entry -> entry.getValue().getSortOrder()))
@@ -101,14 +108,14 @@ public class EmployeeMyCourseService {
                 .courseDeadline(e.getRound().getEndDate())
                 .enrolledAt(e.getEnrolledAt())
                 .completedAt(e.getCompletedAt())
-                .quiz(buildQuizSummary(userId, c))
+                .quiz(buildQuizSummary(userId, lectures))
                 .exam(buildExamSummary(userId, c.getCourseId()))
                 .videos(videos)
                 .build();
     }
 
-    private MyCourseResponse.QuizSummary buildQuizSummary(Long userId, Course course) {
-        List<Quiz> quizzes = course.getLectures().stream()
+    private MyCourseResponse.QuizSummary buildQuizSummary(Long userId, List<Lecture> lectures) {
+        List<Quiz> quizzes = lectures.stream()
                 .map(lecture -> quizRepository.findByLecture_LectureId(lecture.getLectureId()))
                 .flatMap(Optional::stream)
                 .toList();
