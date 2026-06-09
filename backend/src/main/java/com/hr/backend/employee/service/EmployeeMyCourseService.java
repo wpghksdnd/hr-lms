@@ -77,15 +77,18 @@ public class EmployeeMyCourseService {
 
         List<MyCourseResponse.MyCourseVideoWatchStatusDto> videos = lectures.stream()
                 .flatMap(l -> l.getVideos().stream()
-                        .map(vid -> Map.entry(l.getLectureId(), vid)))
-                .sorted(Comparator.comparingInt(entry -> entry.getValue().getSortOrder()))
+                        .map(vid -> Map.entry(l, vid)))
+                .sorted(Comparator
+                        .comparingInt((Map.Entry<Lecture, CourseVideo> entry) -> entry.getKey().getSortOrder())
+                        .thenComparingInt(entry -> entry.getValue().getSortOrder()))
                 .map(entry -> {
-                    Long lectureId = entry.getKey();
+                    Lecture lecture = entry.getKey();
                     CourseVideo v  = entry.getValue();
                     VideoWatchLog log = watchLogMap.get(v.getVideoId());
                     return MyCourseResponse.MyCourseVideoWatchStatusDto.builder()
                             .videoId(v.getVideoId())
-                            .lectureId(lectureId)
+                            .lectureId(lecture.getLectureId())
+                            .lectureSortOrder(lecture.getSortOrder())
                             .title(v.getTitle())
                             .videoURL(v.getVideoUrl())
                             .durationSec(v.getDurationSec())
