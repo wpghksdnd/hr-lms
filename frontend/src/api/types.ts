@@ -102,6 +102,7 @@ export interface MyCourseResponse {
 export interface MyCourseVideoStatus {
   videoId: number;
   lectureId: number;   // 단원 퀴즈 조회용
+  lectureSortOrder: number;
   title: string;
   videoURL: string;
   durationSec: number;

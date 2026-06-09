@@ -64,6 +64,14 @@ function getApiErrorDetail(error: unknown) {
   return [status ? `HTTP ${status}` : null, message].filter(Boolean).join(' - ');
 }
 
+function sortVideos(videos: MyCourseVideoStatus[]) {
+  return [...videos].sort(
+    (a, b) =>
+      (a.lectureSortOrder ?? 0) - (b.lectureSortOrder ?? 0) ||
+      a.sortOrder - b.sortOrder,
+  );
+}
+
 // YT Player 타입 (간이)
 type YTPlayer = {
   getCurrentTime: () => number;
@@ -141,7 +149,7 @@ export default function LearningPage() {
     getMyCourseDetail(selectedCourseId)
       .then((d) => {
         setDetail(d);
-        const sorted = [...(d.videos ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+        const sorted = sortVideos(d.videos ?? []);
         setCurrentVideo(sorted[0] ?? null);
         // 이미 작성한 피드백 확인
         if (d.enrollmentId) getFeedback(d.enrollmentId).then(setFeedbackDone).catch(() => {});
@@ -379,7 +387,7 @@ export default function LearningPage() {
   }, []);
 
   // ── 순차 잠금 ────────────────────────────────────────────────
-  const sortedVideos = [...(detail?.videos ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+  const sortedVideos = sortVideos(detail?.videos ?? []);
   const canOpenVideo = (idx: number) => {
     if (idx <= 0) return true;
     return Boolean(sortedVideos[idx - 1]?.isCompleted);

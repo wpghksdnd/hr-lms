@@ -74,6 +74,7 @@ public class MyCourseResponse {
     public static class MyCourseVideoWatchStatusDto {
         private Long videoId;
         private Long lectureId;   // 단원 퀴즈 조회용
+        private Integer lectureSortOrder;
         private String title;
         private String videoURL;
         private Integer durationSec;
