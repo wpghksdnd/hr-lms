@@ -24,6 +24,7 @@ import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
@@ -108,7 +109,7 @@ public class CertificateWorkflowService {
         }
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public CertificateGenerateResponse generateCertificateForRound(Long userId, Long roundId) {
         if (userId == null || roundId == null) {
             throw new IllegalArgumentException("userId와 roundId는 필수입니다.");
