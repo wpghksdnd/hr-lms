@@ -29,11 +29,21 @@ public class EmployeeCertificateService {
     public List<CertificateResponse> getMyCertificates() {
         Long userId = currentUserProvider.getCurrentUserId();
 
-        // 과거 데이터 보정: DONE인데 이수증이 없는 건은 조회 시 자동 생성
+        // 보정 1: DONE인데 이수증 레코드 자체가 없는 건 생성
         enrollmentRepository.findAllByUserId(userId).stream()
                 .filter(e -> e.getStatus() == Enrollment.Status.DONE)
                 .filter(e -> !certificateRepository.existsByUser_UserIdAndRound_RoundId(userId, e.getRound().getRoundId()))
                 .forEach(certificateWorkflowService::triggerCompletionWorkflow);
+
+        // 보정 2: 이수증 레코드는 있는데 PDF가 없는 건 재생성 (시드 데이터 등)
+        certificateRepository.findAllByUserId(userId).stream()
+                .filter(c -> c.getFileUrl() == null || c.getFileUrl().isBlank())
+                .forEach(c -> {
+                    try {
+                        certificateWorkflowService.generateCertificateForRound(
+                                c.getUser().getUserId(), c.getRound().getRoundId());
+                    } catch (Exception ignored) {}
+                });
 
         return certificateRepository.findAllByUserId(userId)
                 .stream()

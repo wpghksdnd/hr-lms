@@ -12,12 +12,18 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bar: string }
   NOT_STARTED: { label: '미시작',    color: 'text-yellow-600',  bar: 'bg-yellow-400' },
 };
 
+const CATEGORY_COLOR: Record<string, string> = {
+  '법정의무교육': 'bg-blue-50 text-blue-600',
+  '직무교육':    'bg-purple-50 text-purple-600',
+};
+
 export default function MypagePage() {
   const [mypage, setMypage] = useState<MypageResponse | null>(null);
   const [certs, setCerts] = useState<CertificateResponse[]>([]);
   const [history, setHistory] = useState<EnrollmentHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<'certs' | 'history'>('certs');
+  const [downloading, setDownloading] = useState<number | null>(null);
 
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNext, setPwNext] = useState('');
@@ -52,47 +58,81 @@ export default function MypagePage() {
     }
   };
 
+  const handleDownload = async (certId: number) => {
+    setDownloading(certId);
+    await downloadCertificate(certId);
+    setDownloading(null);
+  };
+
   if (loading) return <div className="flex items-center justify-center py-20 text-xs text-gray-400">불러오는 중...</div>;
 
   const inProgressCount = history.filter((h) => h.status === 'IN_PROGRESS').length;
+  const doneCount = mypage?.completedCoursesCount ?? 0;
+  const rate = Math.round(mypage?.overallCompletionRate ?? 0);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-5">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
       <div className="flex flex-col gap-5">
-        {/* 내 정보 카드 */}
-        <div className="bg-white p-5 border border-black/[0.06] rounded-xl shadow-sm">
+
+        {/* 프로필 카드 */}
+        <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm overflow-hidden">
+          {/* 상단 배너 */}
+          <div className="h-20 bg-gradient-to-r from-[#185FA5] to-[#4A90D9]" />
           {mypage && (
-            <>
-              <h4 className="font-bold text-base mb-3">👤 내 정보</h4>
-              <div className="grid grid-cols-2 gap-y-2 text-xs mb-4 pb-4 border-b border-gray-100">
-                <span className="text-gray-400">이름</span><span className="font-medium">{mypage.name}</span>
-                <span className="text-gray-400">사원번호</span><span>{mypage.employeeNo}</span>
-                <span className="text-gray-400">부서</span><span>{mypage.departmentName}</span>
-                <span className="text-gray-400">직위</span><span>{mypage.position}</span>
+            <div className="px-6 pb-6">
+              {/* 아바타 */}
+              <div className="flex items-end justify-between -mt-8 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-2xl font-black text-[#185FA5]">
+                  {mypage.name?.[0] ?? '?'}
+                </div>
+                <div className="flex gap-2 pb-1">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-semibold border border-blue-100">
+                    {mypage.empType === '현장직' ? '현장직' : '사무직'}
+                  </span>
+                </div>
               </div>
-              {/* 통계 요약 */}
+
+              {/* 이름 + 정보 */}
+              <div className="mb-4">
+                <h3 className="text-lg font-black text-gray-800">{mypage.name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{mypage.departmentName} · {mypage.position}</p>
+                <p className="text-xs text-gray-400">{mypage.employeeNo}</p>
+              </div>
+
+              {/* 통계 3칸 */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: '수강 중', value: inProgressCount, color: 'text-blue-600' },
-                  { label: '이수 완료', value: mypage.completedCoursesCount, color: 'text-emerald-600' },
-                  { label: '전체 이수율', value: `${Math.round(mypage.overallCompletionRate ?? 0)}%`, color: 'text-[#185FA5]' },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="bg-gray-50 rounded-xl p-3 text-center">
+                  { label: '수강 중', value: inProgressCount, color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { label: '이수 완료', value: doneCount, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  { label: '전체 이수율', value: `${rate}%`, color: 'text-[#185FA5]', bg: 'bg-[#E6F1FB]' },
+                ].map(({ label, value, color, bg }) => (
+                  <div key={label} className={`${bg} rounded-xl p-3 text-center`}>
                     <div className={`text-xl font-black ${color}`}>{value}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{label}</div>
                   </div>
                 ))}
               </div>
-            </>
+
+              {/* 이수율 바 */}
+              <div className="mt-4">
+                <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                  <span>전체 이수율</span><span className="font-semibold text-[#185FA5]">{rate}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[#185FA5] to-[#4A90D9] rounded-full transition-all duration-500"
+                    style={{ width: `${rate}%` }} />
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* 수료증 / 수강 이력 탭 */}
-        <div className="bg-white p-5 border border-black/[0.06] rounded-xl shadow-sm flex flex-col gap-4">
+        {/* 이수증 / 수강 이력 탭 */}
+        <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-5 flex flex-col gap-4">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-            {([['certs', `🏅 수료증 (${certs.length})`], ['history', `📚 수강 이력 (${history.length})`]] as const).map(([k, label]) => (
+            {([['certs', `🏅 이수증 (${certs.length})`], ['history', `📚 수강 이력 (${history.length})`]] as const).map(([k, label]) => (
               <button key={k} onClick={() => setActiveSection(k)}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeSection === k ? 'bg-white shadow-sm text-[#185FA5]' : 'text-gray-400'}`}>
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeSection === k ? 'bg-white shadow-sm text-[#185FA5]' : 'text-gray-400 hover:text-gray-600'}`}>
                 {label}
               </button>
             ))}
@@ -101,19 +141,41 @@ export default function MypagePage() {
           {activeSection === 'certs' ? (
             <div className="flex flex-col gap-3">
               {certs.length === 0 ? (
-                <div className="text-xs text-gray-400 py-6 text-center">아직 수료한 강좌가 없습니다.</div>
+                <div className="py-10 text-center">
+                  <div className="text-3xl mb-2">🏅</div>
+                  <p className="text-xs text-gray-400">아직 이수한 강좌가 없습니다.</p>
+                  <Link href="/courses" className="inline-block mt-2 text-xs text-[#185FA5] font-semibold hover:underline">수강신청 하러 가기 →</Link>
+                </div>
               ) : (
                 certs.map((cert) => (
-                  <div key={cert.certificateId} className="flex justify-between items-center p-3 border border-black/[0.04] bg-gray-50/50 rounded-lg">
-                    <div>
-                      <div className="font-semibold text-xs sm:text-sm">{cert.courseTitle}</div>
+                  <div key={cert.certificateId}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-black/[0.06] bg-gradient-to-r from-amber-50/60 to-white hover:shadow-sm transition-shadow">
+                    {/* 아이콘 */}
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-lg shrink-0">
+                      🏅
+                    </div>
+                    {/* 텍스트 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-gray-800 truncate">{cert.courseTitle}</div>
                       <div className="text-[11px] text-gray-400 mt-0.5">
                         {new Date(cert.issuedAt).toLocaleDateString('ko-KR')} 발급
                       </div>
                     </div>
-                    <button onClick={() => downloadCertificate(cert.certificateId)}
-                      className="text-[11px] bg-white border border-black/10 px-2.5 py-1.5 rounded-md text-gray-600 font-medium hover:bg-gray-50">
-                      ⬇ 다운로드
+                    {/* 다운로드 버튼 */}
+                    <button
+                      onClick={() => handleDownload(cert.certificateId)}
+                      disabled={downloading === cert.certificateId}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-[#185FA5] bg-white border border-[#185FA5]/30 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors">
+                      {downloading === cert.certificateId ? (
+                        <span className="animate-spin">⏳</span>
+                      ) : (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                          </svg>
+                          PDF
+                        </>
+                      )}
                     </button>
                   </div>
                 ))
@@ -122,28 +184,32 @@ export default function MypagePage() {
           ) : (
             <div className="flex flex-col gap-3">
               {history.length === 0 ? (
-                <div className="text-xs text-gray-400 py-6 text-center">
-                  수강 이력이 없습니다.
-                  <Link href="/courses" className="block mt-2 text-[#185FA5] font-semibold">수강신청 하러 가기 →</Link>
+                <div className="py-10 text-center">
+                  <div className="text-3xl mb-2">📚</div>
+                  <p className="text-xs text-gray-400">수강 이력이 없습니다.</p>
+                  <Link href="/courses" className="inline-block mt-2 text-xs text-[#185FA5] font-semibold hover:underline">수강신청 하러 가기 →</Link>
                 </div>
               ) : (
                 history.map((h) => {
                   const style = STATUS_STYLE[h.status] ?? { label: h.status, color: 'text-gray-400', bar: 'bg-gray-300' };
                   return (
-                    <div key={h.enrollmentId} className="border border-black/[0.04] bg-gray-50/50 rounded-lg p-3 flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold text-xs text-[#222] truncate">{h.courseTitle}</div>
-                        <span className={`text-[10px] font-bold shrink-0 ${style.color}`}>{style.label}</span>
+                    <div key={h.enrollmentId} className="border border-black/[0.06] rounded-xl p-4 flex flex-col gap-2 hover:shadow-sm transition-shadow">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-sm text-gray-800 leading-snug">{h.courseTitle}</div>
+                        <span className={`text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full ${
+                          h.status === 'DONE' ? 'bg-emerald-50 text-emerald-600' :
+                          h.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-600' : 'bg-yellow-50 text-yellow-600'
+                        }`}>{style.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
                           <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${h.progress}%` }} />
                         </div>
-                        <span className="text-[11px] text-gray-500 w-7 text-right">{h.progress}%</span>
+                        <span className="text-[11px] text-gray-500 w-7 text-right font-semibold">{h.progress}%</span>
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-gray-400">
                         <span>{h.roundNo}차</span>
-                        <span>수강: {h.enrolledAt?.slice(0,10)}</span>
+                        <span>신청: {h.enrolledAt?.slice(0,10)}</span>
                         {h.completedAt && <span className="text-emerald-500 font-semibold">이수: {h.completedAt.slice(0,10)}</span>}
                       </div>
                     </div>
@@ -155,35 +221,64 @@ export default function MypagePage() {
         </div>
       </div>
 
-      {/* 비밀번호 변경 */}
-      <div className="bg-white p-5 border border-black/[0.06] rounded-xl shadow-sm flex flex-col gap-3 h-fit">
-        <Link
-          href="/notifications"
-          className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-[#185FA5] transition-colors hover:bg-blue-100"
-        >
-          <span>🔔 알림함</span>
-          <span>전체보기</span>
+      {/* 우측 패널 */}
+      <div className="flex flex-col gap-4">
+        {/* 알림함 */}
+        <Link href="/notifications"
+          className="flex items-center justify-between bg-white border border-black/[0.06] rounded-2xl shadow-sm px-4 py-3 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🔔</span>
+            <span className="text-sm font-bold text-gray-700">알림함</span>
+          </div>
+          <span className="text-xs text-[#185FA5] font-semibold">전체보기 →</span>
         </Link>
-        <h4 className="font-bold text-sm text-gray-800">🔒 비밀번호 변경</h4>
-        <form onSubmit={handlePwChange} className="flex flex-col gap-3">
-          <input type="password" placeholder="현재 비밀번호" required
-            className="w-full p-2 text-xs border border-black/10 rounded-md outline-none focus:border-[#185FA5]"
-            value={pwCurrent} onChange={(e) => { setPwCurrent(e.target.value); setPwMsg(''); }} />
-          <input type="password" placeholder="새 비밀번호 (8자 이상)" required
-            className="w-full p-2 text-xs border border-black/10 rounded-md outline-none focus:border-[#185FA5]"
-            value={pwNext} onChange={(e) => { setPwNext(e.target.value); setPwMsg(''); }} />
-          <input type="password" placeholder="새 비밀번호 확인" required
-            className="w-full p-2 text-xs border border-black/10 rounded-md outline-none focus:border-[#185FA5]"
-            value={pwConfirm} onChange={(e) => { setPwConfirm(e.target.value); setPwMsg(''); }} />
-          {pwMsg && (
-            <div className={`text-xs px-3 py-2 rounded-lg border ${pwSuccess ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-500 bg-red-50 border-red-100'}`}>
-              {pwMsg}
+
+        {/* 비밀번호 변경 */}
+        <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-base">🔒</span>
+            <h4 className="font-bold text-sm text-gray-800">비밀번호 변경</h4>
+          </div>
+          <form onSubmit={handlePwChange} className="flex flex-col gap-2.5">
+            {[
+              { placeholder: '현재 비밀번호', value: pwCurrent, onChange: (v: string) => { setPwCurrent(v); setPwMsg(''); } },
+              { placeholder: '새 비밀번호 (8자 이상)', value: pwNext, onChange: (v: string) => { setPwNext(v); setPwMsg(''); } },
+              { placeholder: '새 비밀번호 확인', value: pwConfirm, onChange: (v: string) => { setPwConfirm(v); setPwMsg(''); } },
+            ].map(({ placeholder, value, onChange }) => (
+              <input key={placeholder} type="password" placeholder={placeholder} required
+                className="w-full px-3 py-2 text-xs border border-black/10 rounded-lg outline-none focus:border-[#185FA5] focus:ring-1 focus:ring-[#185FA5]/20 transition-all"
+                value={value} onChange={(e) => onChange(e.target.value)} />
+            ))}
+            {pwMsg && (
+              <div className={`text-xs px-3 py-2 rounded-lg border ${pwSuccess ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-500 bg-red-50 border-red-100'}`}>
+                {pwMsg}
+              </div>
+            )}
+            <button type="submit"
+              className="w-full py-2.5 bg-[#185FA5] text-white text-xs font-bold rounded-lg hover:bg-[#144f8b] transition-colors mt-1">
+              변경 적용하기
+            </button>
+          </form>
+        </div>
+
+        {/* 내 정보 요약 */}
+        {mypage && (
+          <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-5">
+            <h4 className="font-bold text-sm text-gray-700 mb-3">내 정보</h4>
+            <div className="flex flex-col gap-2 text-xs">
+              {[
+                { label: '이메일', value: mypage.email },
+                { label: '입사일', value: mypage.hireDate },
+                { label: '직군', value: mypage.empType },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-gray-400">{label}</span>
+                  <span className="text-gray-700 font-medium">{value || '-'}</span>
+                </div>
+              ))}
             </div>
-          )}
-          <button type="submit" className="w-full py-2 bg-[#185FA5] text-white text-xs font-bold rounded-md hover:bg-[#144f8b] transition-colors">
-            변경 적용하기
-          </button>
-        </form>
+          </div>
+        )}
       </div>
     </div>
   );

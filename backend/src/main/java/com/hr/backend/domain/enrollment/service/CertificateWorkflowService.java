@@ -123,7 +123,8 @@ public class CertificateWorkflowService {
         Certificate existing = certificateRepository
                 .findByUser_UserIdAndRound_RoundId(userId, roundId)
                 .orElse(null);
-        if (existing != null) {
+        // PDF가 이미 생성된 경우에만 조기 반환 (fileUrl이 비어있으면 재생성)
+        if (existing != null && existing.getFileUrl() != null && !existing.getFileUrl().isBlank()) {
             return CertificateGenerateResponse.builder()
                     .success(true)
                     .certificateId(existing.getCertificateId())
@@ -133,8 +134,10 @@ public class CertificateWorkflowService {
                     .build();
         }
 
-        Certificate saved = certificateRepository.save(
-                Certificate.builder().user(user).round(round).fileUrl("").build());
+        // 레코드가 없으면 새로 생성, 있는데 fileUrl만 비어있으면 기존 레코드 재사용
+        Certificate saved = (existing != null) ? existing
+                : certificateRepository.save(
+                        Certificate.builder().user(user).round(round).fileUrl("").build());
 
         String certNo = buildCertificateNo(saved);
         String currentYear = String.valueOf(Year.now().getValue());
