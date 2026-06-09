@@ -32,9 +32,12 @@ export default function MypagePage() {
   const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
-    Promise.all([getMypage(), getMyCertificates(), getEnrollmentHistory()])
-      .then(([m, c, h]) => { setMypage(m); setCerts(c); setHistory(h); })
-      .catch(() => {})
+    Promise.allSettled([getMypage(), getMyCertificates(), getEnrollmentHistory()])
+      .then(([m, c, h]) => {
+        if (m.status === 'fulfilled') setMypage(m.value);
+        if (c.status === 'fulfilled') setCerts(c.value);
+        if (h.status === 'fulfilled') setHistory(h.value);
+      })
       .finally(() => setLoading(false));
   }, []);
 
