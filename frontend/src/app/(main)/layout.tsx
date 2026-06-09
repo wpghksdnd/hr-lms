@@ -74,7 +74,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* 상단 헤더 — 고정, 전체 너비 */}
       <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-6 bg-white border-b border-black/[0.06]">
         <Link href="/dashboard" className="text-base font-bold">
-          <span className="text-[#185FA5] text-lg font-black tracking-tight mr-1">LMS</span> 사내교육시스템
+          <span className="text-[#185FA5] text-lg font-black tracking-tight mr-1">INSIGHT</span> 사내교육시스템
         </Link>
         <div className="flex items-center gap-3">
           {/* 알림 벨 */}

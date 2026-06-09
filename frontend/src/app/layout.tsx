@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LMS 사내교육시스템",
+  title: "INSIGHT 사내교육시스템",
   description: "사내 온라인 교육 통합 관리 시스템",
 };
 
