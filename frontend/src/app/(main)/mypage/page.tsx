@@ -32,13 +32,11 @@ export default function MypagePage() {
   const [pwSuccess, setPwSuccess] = useState(false);
 
   useEffect(() => {
-    Promise.allSettled([getMypage(), getMyCertificates(), getEnrollmentHistory()])
-      .then(([m, c, h]) => {
-        if (m.status === 'fulfilled') setMypage(m.value);
-        if (c.status === 'fulfilled') setCerts(c.value);
-        if (h.status === 'fulfilled') setHistory(h.value);
-      })
-      .finally(() => setLoading(false));
+    // getMypage가 완료되면 로딩 해제 (실패해도 해제)
+    getMypage().then(setMypage).catch(() => {}).finally(() => setLoading(false));
+    // 나머지는 독립적으로 로드
+    getMyCertificates().then(setCerts).catch(() => {});
+    getEnrollmentHistory().then(setHistory).catch(() => {});
   }, []);
 
   const handlePwChange = async (e: React.FormEvent) => {
