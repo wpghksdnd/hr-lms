@@ -353,7 +353,7 @@ export default function CoursesAdminPage() {
           <div className="py-16 text-center text-sm text-gray-400">강의가 없습니다.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-max text-xs">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['강의명', '카테고리', '대상', '시간(분)', '상태', '등록일', ''].map((h) => (
@@ -367,13 +367,13 @@ export default function CoursesAdminPage() {
                 {filtered.map((c) => (
                   <tr key={c.courseId} className="border-b border-gray-50 hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-semibold text-gray-700 max-w-[200px] truncate">{c.title}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold">
                         {c.category}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{TARGET_ROLE_LABELS[c.targetRole] ?? '-'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.durationMin ?? '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{TARGET_ROLE_LABELS[c.targetRole] ?? '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{c.durationMin ?? '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         c.active ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'
