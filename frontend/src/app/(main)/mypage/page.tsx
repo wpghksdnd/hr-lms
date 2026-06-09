@@ -78,10 +78,10 @@ export default function MypagePage() {
       <div className="flex flex-col gap-5">
 
         {/* 프로필 카드 */}
-        <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm overflow-hidden">
-          {/* 상단 배너 */}
-          <div className="h-20 bg-gradient-to-r from-[#185FA5] to-[#4A90D9]" />
-          {mypage && (
+        {mypage && (
+          <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm overflow-hidden">
+            {/* 상단 배너 */}
+            <div className="h-20 bg-gradient-to-r from-[#185FA5] to-[#4A90D9]" />
             <div className="px-6 pb-6">
               {/* 아바타 */}
               <div className="flex items-end justify-between -mt-8 mb-4">
@@ -127,8 +127,8 @@ export default function MypagePage() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 이수증 / 수강 이력 탭 */}
         <div className="bg-white border border-black/[0.06] rounded-2xl shadow-sm p-5 flex flex-col gap-4">
