@@ -157,26 +157,31 @@ public class CertificateWorkflowService {
         vars.put("verificationUrl", verificationUrl);
         vars.put("qrCodeImage", generateQrCodeDataUri(verificationUrl));
 
-        String fileName = "cert_" + saved.getCertificateId() + ".pdf";
-        certificatePdfService.generatePdf(vars, fileName, currentYear);
+        // PDF 생성 실패 시 예외를 잡아 레코드는 보존 — 트랜잭션은 Certificate 저장까지만 커밋됨
+        String storedPath = null;
+        try {
+            String fileName = "cert_" + saved.getCertificateId() + ".pdf";
+            certificatePdfService.generatePdf(vars, fileName, currentYear);
+            storedPath = "/certificates/" + currentYear + "/" + fileName;
+            saved.updateFileUrl(storedPath);
+            certificateRepository.save(saved);
 
-        String storedPath = "/certificates/" + currentYear + "/" + fileName;
-        saved.updateFileUrl(storedPath);
-        certificateRepository.save(saved);
-
-        // 이수증 발급 알림 발송
-        enrollmentRepository.findAllByUserId(user.getUserId()).stream()
-                .filter(e -> e.getRound().getRoundId().equals(roundId))
-                .findFirst()
-                .ifPresent(e -> notificationService.notifyCertificateIssued(
-                        user, round.getCourse().getTitle(), e.getEnrollmentId()));
+            // 이수증 발급 알림 발송
+            enrollmentRepository.findAllByUserId(user.getUserId()).stream()
+                    .filter(e -> e.getRound().getRoundId().equals(roundId))
+                    .findFirst()
+                    .ifPresent(e -> notificationService.notifyCertificateIssued(
+                            user, round.getCourse().getTitle(), e.getEnrollmentId()));
+        } catch (Exception e) {
+            log.warn("[이수증] PDF 생성 실패 — certId={}: {}", saved.getCertificateId(), e.getMessage());
+        }
 
         return CertificateGenerateResponse.builder()
                 .success(true)
                 .certificateId(saved.getCertificateId())
                 .pdfPath(storedPath)
                 .certificateNo(certNo)
-                .message("이수증이 생성되었습니다.")
+                .message(storedPath != null ? "이수증이 생성되었습니다." : "이수증 레코드가 저장되었습니다. (PDF 생성 보류)")
                 .build();
     }
 
