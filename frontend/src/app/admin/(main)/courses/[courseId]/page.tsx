@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   getAdminCourses, AdminCourseResponse,
   getLectures, createLecture, updateLecture, deleteLecture, LectureResponse, LectureRequest,
-  getVideos, createVideo, updateVideo, deleteVideo, VideoResponse, VideoRequest,
+  getVideos, createVideo, updateVideo, deleteVideo, uploadVideo, VideoResponse, VideoRequest,
   getQuiz, createQuiz, updateQuiz, deleteQuiz, addQuizQuestion, updateQuizQuestion, deleteQuizQuestion,
   QuizResponse, QuizRequest, QuestionItem, ChoiceItem,
   getExam, createExam, updateExam, deleteExam, addExamQuestion, updateExamQuestion, deleteExamQuestion,
@@ -415,7 +415,9 @@ function LectureAccordion({
                 <div key={v.videoId}>
                   {editingVideo?.videoId === v.videoId ? (
                     <VideoForm vForm={vForm} setVForm={setVForm} onSave={handleVideoSave}
-                      onCancel={() => setEditingVideo(null)} saving={saving} label="수정" />
+                      onCancel={() => setEditingVideo(null)} saving={saving} label="수정"
+                      lectureId={lecture.lectureId} sortOrder={v.sortOrder}
+                      onUploaded={(uploaded) => { setVideos((prev) => prev.map((x) => x.videoId === editingVideo?.videoId ? uploaded : x)); setEditingVideo(null); }} />
                   ) : (
                     <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2.5 border border-gray-100">
                       <div className="flex items-center gap-3">
@@ -438,7 +440,9 @@ function LectureAccordion({
               ))}
               {addingVideo && (
                 <VideoForm vForm={vForm} setVForm={setVForm} onSave={handleVideoSave}
-                  onCancel={() => setAddingVideo(false)} saving={saving} label="추가" />
+                  onCancel={() => setAddingVideo(false)} saving={saving} label="추가"
+                  lectureId={lecture.lectureId} sortOrder={videos.length}
+                  onUploaded={(uploaded) => { setVideos((prev) => [...prev, uploaded]); setAddingVideo(false); }} />
               )}
               {!addingVideo && !editingVideo && (
                 <button onClick={() => { setAddingVideo(true); setVForm({ title: '', videoUrl: '', durationSec: 0, sortOrder: videos.length }); }}
@@ -479,10 +483,14 @@ function extractYoutubeId(url: string): string | null {
   return null;
 }
 
-function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
+function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label, lectureId, sortOrder, onUploaded }: {
   vForm: VideoRequest; setVForm: (v: VideoRequest) => void;
   onSave: () => void; onCancel: () => void; saving: boolean; label: string;
+  lectureId: number; sortOrder: number; onUploaded: (v: VideoResponse) => void;
 }) {
+  const [mode, setMode] = useState<'url' | 'file'>('url');
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [detecting, setDetecting] = useState(false);
   const isYoutube = /youtube\.com|youtu\.be/.test(vForm.videoUrl);
   const mins = Math.floor(vForm.durationSec / 60);
@@ -492,19 +500,16 @@ function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
     const videoId = extractYoutubeId(vForm.videoUrl);
     if (!videoId) return;
     setDetecting(true);
-
     const divId = `yt-detect-${Date.now()}`;
     const div = document.createElement('div');
     div.id = divId;
     Object.assign(div.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px' });
     document.body.appendChild(div);
-
     const cleanup = (duration?: number) => {
       try { document.body.removeChild(div); } catch { }
       if (duration != null && duration > 0) setVForm({ ...vForm, durationSec: Math.ceil(duration) });
       setDetecting(false);
     };
-
     const createPlayer = () => {
       const YT = (window as { YT?: { Player?: new (...a: unknown[]) => unknown } }).YT;
       if (!YT?.Player) { setTimeout(createPlayer, 300); return; }
@@ -516,7 +521,6 @@ function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
         },
       });
     };
-
     if ((window as { YT?: { Player?: unknown } }).YT?.Player) {
       createPlayer();
     } else {
@@ -530,58 +534,113 @@ function VideoForm({ vForm, setVForm, onSave, onCancel, saving, label }: {
     }
   };
 
+  const handleFileUpload = async () => {
+    if (!file || !vForm.title.trim()) { alert('제목과 파일을 모두 선택하세요.'); return; }
+    setUploadPct(0);
+    try {
+      const result = await uploadVideo(lectureId, file, vForm.title.trim(), sortOrder, setUploadPct);
+      onUploaded(result);
+    } catch {
+      alert('업로드 실패. 파일 형식(mp4·webm·mov)과 크기를 확인하세요.');
+    } finally {
+      setUploadPct(null);
+    }
+  };
+
   return (
     <div className="bg-white border border-dashed border-[#4A90D9] rounded-xl p-3 flex flex-col gap-2">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-gray-400">영상 제목</label>
-          <input type="text" placeholder="예: 1. OT 소개" value={vForm.title}
-            className="p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9]"
-            onChange={(e) => setVForm({ ...vForm, title: e.target.value })} />
-        </div>
-        {/* 분:초 입력 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold text-gray-400">
-            재생 시간 <span className="text-gray-300">(총 {vForm.durationSec}초)</span>
-          </label>
-          <div className="flex items-center gap-1">
-            <input type="number" min={0} max={999} value={mins}
-              className="w-14 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9] text-center"
-              onChange={(e) => setVForm({ ...vForm, durationSec: Math.max(0, Number(e.target.value)) * 60 + secs })} />
-            <span className="text-[10px] text-gray-400 shrink-0">분</span>
-            <input type="number" min={0} max={59} value={secs}
-              className="w-14 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9] text-center"
-              onChange={(e) => setVForm({ ...vForm, durationSec: mins * 60 + Math.min(59, Math.max(0, Number(e.target.value))) })} />
-            <span className="text-[10px] text-gray-400 shrink-0">초</span>
-          </div>
-        </div>
+      {/* 모드 탭 */}
+      <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg self-start">
+        {([['url', '🔗 YouTube URL'], ['file', '📁 직접 업로드']] as const).map(([k, lbl]) => (
+          <button key={k} type="button" onClick={() => setMode(k)}
+            className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${mode === k ? 'bg-white shadow-sm text-[#4A90D9]' : 'text-gray-400 hover:text-gray-600'}`}>
+            {lbl}
+          </button>
+        ))}
       </div>
+
+      {/* 공통: 제목 */}
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-bold text-gray-400">영상 URL</label>
-        <div className="flex gap-1.5">
-          <input type="text" placeholder="https://..." value={vForm.videoUrl}
-            className="flex-1 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9]"
-            onChange={(e) => setVForm({ ...vForm, videoUrl: e.target.value })} />
-          {isYoutube && (
-            <button type="button" onClick={detectDuration} disabled={detecting}
-              className="shrink-0 px-2.5 py-1.5 text-[11px] bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 font-bold rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap">
-              {detecting ? '감지 중…' : '⏱ 자동 감지'}
+        <label className="text-[10px] font-bold text-gray-400">영상 제목</label>
+        <input type="text" placeholder="예: 1. OT 소개" value={vForm.title}
+          className="p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9]"
+          onChange={(e) => setVForm({ ...vForm, title: e.target.value })} />
+      </div>
+
+      {mode === 'url' ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-gray-400">
+                재생 시간 <span className="text-gray-300">(총 {vForm.durationSec}초)</span>
+              </label>
+              <div className="flex items-center gap-1">
+                <input type="number" min={0} max={999} value={mins}
+                  className="w-14 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9] text-center"
+                  onChange={(e) => setVForm({ ...vForm, durationSec: Math.max(0, Number(e.target.value)) * 60 + secs })} />
+                <span className="text-[10px] text-gray-400 shrink-0">분</span>
+                <input type="number" min={0} max={59} value={secs}
+                  className="w-14 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9] text-center"
+                  onChange={(e) => setVForm({ ...vForm, durationSec: mins * 60 + Math.min(59, Math.max(0, Number(e.target.value))) })} />
+                <span className="text-[10px] text-gray-400 shrink-0">초</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-gray-400">YouTube URL</label>
+            <div className="flex gap-1.5">
+              <input type="text" placeholder="https://www.youtube.com/watch?v=..." value={vForm.videoUrl}
+                className="flex-1 p-2 text-xs border border-gray-200 rounded-lg outline-none focus:border-[#4A90D9]"
+                onChange={(e) => setVForm({ ...vForm, videoUrl: e.target.value })} />
+              {isYoutube && (
+                <button type="button" onClick={detectDuration} disabled={detecting}
+                  className="shrink-0 px-2.5 py-1.5 text-[11px] bg-red-50 border border-red-200 text-red-500 hover:bg-red-100 font-bold rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap">
+                  {detecting ? '감지 중…' : '⏱ 자동 감지'}
+                </button>
+              )}
+            </div>
+            {isYoutube && (
+              <p className="text-[10px] text-blue-500">YouTube URL 감지됨 — 임베드 허용 영상만 재생됩니다.</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onSave} disabled={saving}
+              className="px-3 py-1.5 text-[11px] font-bold bg-[#4A90D9] text-white rounded-lg disabled:bg-gray-300">
+              {saving ? '저장 중…' : label}
             </button>
+            <button onClick={onCancel} className="px-3 py-1.5 text-[11px] font-semibold border border-gray-200 rounded-lg">취소</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-gray-400">영상 파일 (mp4 · webm · mov)</label>
+            <input type="file" accept="video/mp4,video/webm,video/quicktime,video/ogg"
+              className="text-xs file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-[#4A90D9]/10 file:text-[#4A90D9] hover:file:bg-[#4A90D9]/20 cursor-pointer"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                setFile(f);
+                if (f && !vForm.title.trim()) setVForm({ ...vForm, title: f.name.replace(/\.[^/.]+$/, '') });
+              }} />
+            {file && <p className="text-[10px] text-gray-400">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB) — 재생 시간은 업로드 후 자동 등록됩니다.</p>}
+          </div>
+          {uploadPct !== null && (
+            <div className="flex flex-col gap-1">
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div className="h-full bg-[#4A90D9] rounded-full transition-all" style={{ width: `${uploadPct}%` }} />
+              </div>
+              <p className="text-[10px] text-[#4A90D9] font-bold">업로드 중... {uploadPct}%</p>
+            </div>
           )}
-        </div>
-        {isYoutube && (
-          <p className="text-[10px] text-blue-500">
-            YouTube URL 감지됨 — &quot;자동 감지&quot; 버튼으로 영상 길이를 불러올 수 있습니다.
-          </p>
-        )}
-      </div>
-      <div className="flex gap-2">
-        <button onClick={onSave} disabled={saving}
-          className="px-3 py-1.5 text-[11px] font-bold bg-[#4A90D9] text-white rounded-lg disabled:bg-gray-300">
-          {saving ? '저장 중…' : label}
-        </button>
-        <button onClick={onCancel} className="px-3 py-1.5 text-[11px] font-semibold border border-gray-200 rounded-lg">취소</button>
-      </div>
+          <div className="flex gap-2">
+            <button onClick={handleFileUpload} disabled={!file || uploadPct !== null}
+              className="px-3 py-1.5 text-[11px] font-bold bg-[#4A90D9] text-white rounded-lg disabled:bg-gray-300">
+              {uploadPct !== null ? `업로드 중 ${uploadPct}%` : '업로드'}
+            </button>
+            <button onClick={onCancel} className="px-3 py-1.5 text-[11px] font-semibold border border-gray-200 rounded-lg">취소</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

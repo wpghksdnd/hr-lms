@@ -258,7 +258,7 @@ export default function CompletionPage() {
           <div className="py-16 text-center text-sm text-gray-400">데이터가 없습니다.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-max text-xs">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {(tab === 'pending'
@@ -272,10 +272,10 @@ export default function CompletionPage() {
               <tbody>
                 {displayed.map((e) => (
                   <tr key={e.enrollmentId} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-semibold text-gray-700">{e.userName}</td>
-                    <td className="px-4 py-3 text-gray-500">{e.department || '-'}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">{e.userName}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{e.department || '-'}</td>
                     <td className="px-4 py-3 text-gray-600 max-w-[180px] truncate">{e.courseTitle}</td>
-                    <td className="px-4 py-3 text-gray-400">{e.roundNo}차</td>
+                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{e.roundNo}차</td>
                     {tab === 'pending' ? (
                       <>
                         <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{e.enrolledAt?.slice(0, 10)}</td>

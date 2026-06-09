@@ -51,7 +51,7 @@ public class EnrollmentController {
         if (page != null) {
             // page 파라미터가 있으면 항상 Page<T> 반환 (필터 포함)
             Page<EnrollmentResponse> result =
-                    enrollmentService.getFilteredPaged(filter, dept, category, page, size);
+                    enrollmentService.getFilteredPaged(filter, dept, category, role, page, size);
             return ResponseEntity.ok(result);
         }
         return ResponseEntity.ok(enrollmentService.getFiltered(filter, dept, category, role));

@@ -1,25 +1,15 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { LoginResponse } from '@/api/auth';
 import { logout } from '@/api/auth';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '@/api/notifications';
 import type { NotificationItem } from '@/api/types';
 import { formatNotificationDate, getNotificationIcon, getNotificationTitle } from '@/utils/notificationUi';
-
-const NAV_TABS = [
-  { href: '/dashboard', label: '홈' },
-  { href: '/courses', label: '수강신청' },
-  { href: '/learning', label: '동영상 학습' },
-  { href: '/calendar', label: '캘린더' },
-  { href: '/notices', label: '공지사항' },
-  { href: '/chatbot', label: 'AI 챗봇' },
-  { href: '/mypage', label: '마이페이지' },
-];
+import UserSidebar from '@/components/UserSidebar';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<LoginResponse | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -32,10 +22,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     if (!stored) { router.replace('/login'); return; }
     try { setUserInfo(JSON.parse(stored)); } catch { localStorage.removeItem('user'); router.replace('/login'); return; }
     const refreshUnreadCount = () => getUnreadCount().then(setUnreadCount).catch(() => {});
-    // 알림 개수 초기 로드
     refreshUnreadCount();
     window.addEventListener('notifications:updated', refreshUnreadCount);
-    // 30초마다 갱신
     const timer = setInterval(refreshUnreadCount, 30000);
     return () => {
       clearInterval(timer);
@@ -43,7 +31,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     };
   }, [router]);
 
-  // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notiRef.current && !notiRef.current.contains(e.target as Node)) setNotiOpen(false);
@@ -77,14 +64,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   };
 
   const handleLogout = async () => {
-    await logout().catch(() => {});  // 쿠키 삭제 (실패해도 로컬 정리는 진행)
+    await logout().catch(() => {});
     localStorage.removeItem('user');
     router.replace('/login');
   };
 
   return (
     <div className="min-h-screen text-sm text-[#1a1a1a] bg-[#f5f5f3]">
-      <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-black/[0.06]">
+      {/* 상단 헤더 — 고정, 전체 너비 */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-6 bg-white border-b border-black/[0.06]">
         <Link href="/dashboard" className="text-base font-bold">
           <span className="text-[#185FA5] text-lg font-black tracking-tight mr-1">LMS</span> 사내교육시스템
         </Link>
@@ -103,14 +91,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               )}
             </button>
 
-            {/* 알림 드롭다운 */}
             {notiOpen && (
-              <div className="absolute right-0 top-10 w-[min(20rem,calc(100vw-1.5rem))] bg-white dark:bg-neutral-950 border border-black/[0.08] dark:border-white/10 rounded-xl shadow-lg z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06] dark:border-white/10">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-100">알림</span>
+              <div className="absolute right-0 top-10 w-[min(20rem,calc(100vw-1.5rem))] bg-white border border-black/[0.08] rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/[0.06]">
+                  <span className="text-xs font-bold text-gray-700">알림</span>
                   {unreadCount > 0 && (
-                    <button onClick={handleMarkAllRead}
-                      className="text-[10px] text-[#185FA5] hover:underline font-semibold">
+                    <button onClick={handleMarkAllRead} className="text-[10px] text-[#185FA5] hover:underline font-semibold">
                       모두 읽음
                     </button>
                   )}
@@ -122,10 +108,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     notifications.slice(0, 5).map((n) => (
                       <button key={n.notificationId}
                         onClick={() => handleOpenNotification(n)}
-                        className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-black/[0.04] dark:border-white/10 transition-colors ${n.read ? 'bg-white dark:bg-neutral-950' : 'bg-blue-50/60 hover:bg-blue-50 dark:bg-blue-950/40 dark:hover:bg-blue-950/60'}`}>
+                        className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-black/[0.04] transition-colors ${n.read ? 'bg-white' : 'bg-blue-50/60 hover:bg-blue-50'}`}>
                         <span className="text-base shrink-0 mt-0.5">{getNotificationIcon(n.type)}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs leading-snug truncate ${n.read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100 font-semibold'}`}>
+                          <p className={`text-xs leading-snug truncate ${n.read ? 'text-gray-500' : 'text-gray-800 font-semibold'}`}>
                             {getNotificationTitle(n)}
                           </p>
                           <p className="text-[10px] text-gray-400 mt-0.5">
@@ -137,11 +123,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     ))
                   )}
                 </div>
-                <Link
-                  href="/notifications"
-                  onClick={() => setNotiOpen(false)}
-                  className="block px-4 py-2.5 text-center text-xs font-bold text-[#185FA5] bg-gray-50 hover:bg-gray-100 dark:bg-neutral-900 dark:hover:bg-neutral-800"
-                >
+                <Link href="/notifications" onClick={() => setNotiOpen(false)}
+                  className="block px-4 py-2.5 text-center text-xs font-bold text-[#185FA5] bg-gray-50 hover:bg-gray-100">
                   전체보기
                 </Link>
               </div>
@@ -160,25 +143,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </div>
       </header>
 
-      <nav className="flex justify-center gap-1.5 px-5 bg-white border-b border-black/[0.08] overflow-x-auto">
-        {NAV_TABS.map((tab) => {
-          const isActive = pathname === tab.href || (tab.href !== '/dashboard' && pathname.startsWith(tab.href));
-          return (
-            <Link key={tab.href} href={tab.href}
-              className={`px-5 py-3 text-[13px] font-medium rounded-t-lg transition-all border-b-2 -mb-[1px] whitespace-nowrap ${
-                isActive
-                  ? 'bg-[#f5f5f3] text-[#185FA5] font-bold border-b-transparent border-t border-x border-black/[0.08]'
-                  : 'text-[#888] border-b-transparent hover:text-[#185FA5]'
-              }`}>
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <main className="p-4 sm:p-6 max-w-[1200px] mx-auto">
-        {children}
-      </main>
+      {/* 사이드바 + 본문 */}
+      <div className="flex pt-14">
+        <UserSidebar />
+        <main className="ml-16 flex-1 p-4 sm:p-6">
+          <div className="max-w-[1200px] mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

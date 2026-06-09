@@ -1,5 +1,6 @@
 package com.hr.backend.security;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,5 +50,13 @@ public class LoginAttemptService {
 
     public void recordSuccess(String ip) {
         attempts.remove(ip);
+    }
+
+    /** 1시간마다 만료된 IP 잠금 항목을 정리해 메모리 누수를 방지한다. */
+    @Scheduled(fixedDelay = 3_600_000)
+    public void evictExpiredEntries() {
+        long now = System.currentTimeMillis();
+        attempts.entrySet().removeIf(entry ->
+                now - entry.getValue().lastAttemptMs() > BLOCK_DURATION_MS);
     }
 }

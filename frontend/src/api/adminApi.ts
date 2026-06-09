@@ -236,6 +236,25 @@ export const updateVideo = (lectureId: number, videoId: number, req: VideoReques
 export const deleteVideo = (lectureId: number, videoId: number): Promise<void> =>
   client.delete(`/api/admin/lectures/${lectureId}/videos/${videoId}`).then(() => undefined);
 
+export const uploadVideo = (
+  lectureId: number,
+  file: File,
+  title: string,
+  sortOrder: number,
+  onProgress?: (pct: number) => void,
+): Promise<VideoResponse> => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('title', title);
+  form.append('sortOrder', String(sortOrder));
+  return client.post(`/api/admin/lectures/${lectureId}/videos/upload`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  }).then((r) => r.data);
+};
+
 // ─── Quiz (단원 퀴즈) ────────────────────────────────────────────────────────
 
 export interface ChoiceItem {

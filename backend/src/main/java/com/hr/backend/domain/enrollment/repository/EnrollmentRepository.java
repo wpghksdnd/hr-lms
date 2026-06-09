@@ -93,7 +93,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
         countQuery = "SELECT COUNT(e) FROM Enrollment e")
     Page<Enrollment> findAllWithUserAndCoursePaged(Pageable pageable);
 
-    /** 필터(부서/카테고리/미이수) + 페이지네이션 통합 쿼리 */
+    /** 필터(부서/카테고리/미이수/직군) + 페이지네이션 통합 쿼리 */
     @Query(value = """
         SELECT e FROM Enrollment e
         JOIN FETCH e.user u
@@ -103,6 +103,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
         WHERE (:dept IS NULL OR d.name = :dept)
           AND (:category IS NULL OR c.category = :category)
           AND (:onlyIncomplete = false OR e.status <> 'DONE')
+          AND (:role IS NULL OR c.targetRole = :role)
         """,
         countQuery = """
         SELECT COUNT(e) FROM Enrollment e
@@ -113,12 +114,32 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
         WHERE (:dept IS NULL OR d.name = :dept)
           AND (:category IS NULL OR c.category = :category)
           AND (:onlyIncomplete = false OR e.status <> 'DONE')
+          AND (:role IS NULL OR c.targetRole = :role)
         """)
     Page<Enrollment> findFilteredPaged(
         @Param("dept") String dept,
         @Param("category") String category,
         @Param("onlyIncomplete") boolean onlyIncomplete,
+        @Param("role") Integer role,
         Pageable pageable);
+
+    /** 복합 필터 조회 (dept, category, onlyIncomplete, targetRole 조합 가능) */
+    @Query("""
+        SELECT e FROM Enrollment e
+        JOIN FETCH e.user u
+        LEFT JOIN FETCH u.department d
+        JOIN FETCH e.round r
+        JOIN FETCH r.course c
+        WHERE (:dept IS NULL OR d.name = :dept)
+          AND (:category IS NULL OR c.category = :category)
+          AND (:onlyIncomplete = false OR e.status <> 'DONE')
+          AND (:role IS NULL OR c.targetRole = :role)
+        """)
+    List<Enrollment> findFiltered(
+        @Param("dept") String dept,
+        @Param("category") String category,
+        @Param("onlyIncomplete") boolean onlyIncomplete,
+        @Param("role") Integer role);
 
     /** 통계용 count 쿼리 — findAll() 대신 사용 */
     long countByStatus(Enrollment.Status status);

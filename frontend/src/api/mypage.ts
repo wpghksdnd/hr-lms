@@ -12,13 +12,17 @@ export async function getMyCertificates(): Promise<CertificateResponse[]> {
 }
 
 export async function downloadCertificate(certificateId: number): Promise<void> {
-  const res = await client.get(`/api/user/certificates/${certificateId}/download`, {
-    responseType: 'blob',
-  });
-  const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `이수증_${certificateId}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    const res = await client.get(`/api/user/certificates/${certificateId}/download`, {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `이수증_${certificateId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    alert('이수증 파일을 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.');
+  }
 }

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +32,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class EnrollmentServiceTest {
 
     @InjectMocks EnrollmentService enrollmentService;
@@ -56,13 +59,10 @@ class EnrollmentServiceTest {
         enrollment = mock(Enrollment.class);
 
         given(user.getUserId()).willReturn(1L);
-        given(user.getName()).willReturn("홍길동");
         given(course.getCourseId()).willReturn(10L);
         given(round.getCourse()).willReturn(course);
-        given(round.getRoundId()).willReturn(5L);
         given(enrollment.getUser()).willReturn(user);
         given(enrollment.getRound()).willReturn(round);
-        given(enrollment.getApprovalStatus()).willReturn(Enrollment.ApprovalStatus.APPROVED);
         given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
     }
 
@@ -119,6 +119,10 @@ class EnrollmentServiceTest {
         given(attemptRepository.existsByUser_UserIdAndExam_Course_CourseIdAndPassedTrue(1L, 10L))
                 .willReturn(true);
         given(enrollment.getStatus()).willReturn(Enrollment.Status.IN_PROGRESS);
+        // EnrollmentResponse 생성에 필요한 stub
+        given(user.getName()).willReturn("홍길동");
+        given(round.getRoundId()).willReturn(5L);
+        given(enrollment.getApprovalStatus()).willReturn(Enrollment.ApprovalStatus.APPROVED);
 
         // 이수 완료가 정상 호출되는지 확인 (예외 없음)
         assertThatCode(() -> enrollmentService.completeEnrollment(1L))
@@ -133,7 +137,6 @@ class EnrollmentServiceTest {
     @Test
     @DisplayName("이미 승인된 수강 신청을 재승인하면 예외 발생")
     void approveEnrollment_alreadyApproved_throws() {
-        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
         given(enrollment.getApprovalStatus()).willReturn(Enrollment.ApprovalStatus.APPROVED);
 
         assertThatThrownBy(() -> enrollmentService.approveEnrollment(1L))
@@ -144,7 +147,6 @@ class EnrollmentServiceTest {
     @Test
     @DisplayName("이미 반려된 수강 신청을 재반려하면 예외 발생")
     void rejectEnrollment_alreadyRejected_throws() {
-        given(enrollmentRepository.findById(1L)).willReturn(Optional.of(enrollment));
         given(enrollment.getApprovalStatus()).willReturn(Enrollment.ApprovalStatus.REJECTED);
 
         assertThatThrownBy(() -> enrollmentService.rejectEnrollment(1L))

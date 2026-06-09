@@ -238,7 +238,7 @@ export default function LearningPage() {
 
       ytPlayerRef.current = new YT.Player('yt-player-container', {
         videoId,
-        playerVars: { start: Math.floor(startSec), rel: 0, modestbranding: 1 },
+        playerVars: { start: Math.floor(startSec), rel: 0, modestbranding: 1, origin: window.location.origin },
         events: {
           onReady: () => {
             setStatusMsg('영상을 재생하세요. 앞으로 건너뛰기는 제한됩니다.');

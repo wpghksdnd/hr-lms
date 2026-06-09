@@ -235,7 +235,7 @@ export default function EmployeesPage() {
           <div className="py-16 text-center text-sm text-gray-400">직원이 없습니다.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-max text-xs">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   {['사번', '이름', '부서', '직급', '직군', '이메일', '입사일', '권한', '상태', '수강현황', ''].map((h) => (
@@ -248,12 +248,12 @@ export default function EmployeesPage() {
               <tbody>
                 {employees.map((emp) => (
                   <tr key={emp.userId} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-mono text-gray-600">{emp.employeeNo}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-700">{emp.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{emp.departmentName ?? '-'}</td>
-                    <td className="px-4 py-3 text-gray-500">{emp.position}</td>
-                    <td className="px-4 py-3 text-gray-500">{emp.empType === 0 ? '사무직' : '현장직'}</td>
-                    <td className="px-4 py-3 text-gray-500">{emp.email}</td>
+                    <td className="px-4 py-3 font-mono text-gray-600 whitespace-nowrap">{emp.employeeNo}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-700 whitespace-nowrap">{emp.name}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.departmentName ?? '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.position}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.empType === 0 ? '사무직' : '현장직'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.email}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{emp.hireDate}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${

@@ -27,6 +27,9 @@ ai:
 cors:
   allowed-origins: http://localhost:3005,http://127.0.0.1:3005,http://192.168.2.46:3005
 
+certificate:
+  internal-api-token: local-dev-only-token
+
 logging:
   level:
     com.hr.backend.security: INFO

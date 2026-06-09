@@ -10,11 +10,13 @@ import com.hr.backend.employee.exception.ForbiddenException;
 import com.hr.backend.employee.exception.ResourceNotFoundException;
 import com.hr.backend.employee.util.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -29,11 +31,37 @@ public class EmployeeCertificateService {
     public List<CertificateResponse> getMyCertificates() {
         Long userId = currentUserProvider.getCurrentUserId();
 
-        // 과거 데이터 보정: DONE인데 이수증이 없는 건은 조회 시 자동 생성
-        enrollmentRepository.findAllByUserId(userId).stream()
-                .filter(e -> e.getStatus() == Enrollment.Status.DONE)
-                .filter(e -> !certificateRepository.existsByUser_UserIdAndRound_RoundId(userId, e.getRound().getRoundId()))
-                .forEach(certificateWorkflowService::triggerCompletionWorkflow);
+        // 보정 1: DONE인데 이수증 레코드 없는 건 생성 (개별 실패해도 계속)
+        try {
+            enrollmentRepository.findAllByUserId(userId).stream()
+                    .filter(e -> e.getStatus() == Enrollment.Status.DONE)
+                    .filter(e -> !certificateRepository.existsByUser_UserIdAndRound_RoundId(userId, e.getRound().getRoundId()))
+                    .forEach(e -> {
+                        try {
+                            certificateWorkflowService.triggerCompletionWorkflow(e);
+                        } catch (Exception ex) {
+                            log.warn("[이수증 보정1] enrollmentId={} 실패: {}", e.getEnrollmentId(), ex.getMessage());
+                        }
+                    });
+        } catch (Exception ex) {
+            log.warn("[이수증 보정1] 전체 실패: {}", ex.getMessage());
+        }
+
+        // 보정 2: 이수증 레코드는 있는데 PDF가 없는 건 재생성
+        try {
+            certificateRepository.findAllByUserId(userId).stream()
+                    .filter(c -> c.getFileUrl() == null || c.getFileUrl().isBlank())
+                    .forEach(c -> {
+                        try {
+                            certificateWorkflowService.generateCertificateForRound(
+                                    c.getUser().getUserId(), c.getRound().getRoundId());
+                        } catch (Exception ex) {
+                            log.warn("[이수증 보정2] certificateId={} 실패: {}", c.getCertificateId(), ex.getMessage());
+                        }
+                    });
+        } catch (Exception ex) {
+            log.warn("[이수증 보정2] 전체 실패: {}", ex.getMessage());
+        }
 
         return certificateRepository.findAllByUserId(userId)
                 .stream()
