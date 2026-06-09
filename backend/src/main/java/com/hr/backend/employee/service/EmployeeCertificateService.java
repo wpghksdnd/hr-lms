@@ -47,26 +47,32 @@ public class EmployeeCertificateService {
             log.warn("[이수증 보정1] 전체 실패: {}", ex.getMessage());
         }
 
-        // 보정 2: 이수증 레코드는 있는데 PDF가 없는 건 재생성
-        try {
-            certificateRepository.findAllByUserId(userId).stream()
-                    .filter(c -> c.getFileUrl() == null || c.getFileUrl().isBlank())
-                    .forEach(c -> {
-                        try {
-                            certificateWorkflowService.generateCertificateForRound(
-                                    c.getUser().getUserId(), c.getRound().getRoundId());
-                        } catch (Exception ex) {
-                            log.warn("[이수증 보정2] certificateId={} 실패: {}", c.getCertificateId(), ex.getMessage());
-                        }
-                    });
-        } catch (Exception ex) {
-            log.warn("[이수증 보정2] 전체 실패: {}", ex.getMessage());
-        }
+        // 보정 2는 getMyCertificates()에서 제거: 다수 PDF 동시 생성 시 OOM 위험
+        // PDF가 없는 이수증은 다운로드 시점에 온디맨드로 생성
 
         return certificateRepository.findAllByUserId(userId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * PDF가 없는 이수증을 온디맨드 생성한다.
+     * certificateWorkflowService 는 Spring 프록시이므로 @Transactional(REQUIRES_NEW) 가 정상 적용된다.
+     */
+    @Transactional
+    public void ensurePdfGenerated(Long certificateId) {
+        Long userId = currentUserProvider.getCurrentUserId();
+        Certificate c = certificateRepository.findById(certificateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Certificate", "certificateId", certificateId));
+        if (!c.getUser().getUserId().equals(userId)) {
+            throw new ForbiddenException("문서에 대한 접근 권한이 없습니다.");
+        }
+        if (c.getFileUrl() == null || c.getFileUrl().isBlank()) {
+            log.info("[이수증 다운로드] PDF 없음 — 온디맨드 생성 시작 certId={}", certificateId);
+            certificateWorkflowService.generateCertificateForRound(
+                    c.getUser().getUserId(), c.getRound().getRoundId());
+        }
     }
 
     public CertificateResponse getCertificateDetail(Long certificateId) {

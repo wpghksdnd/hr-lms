@@ -9,6 +9,7 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
+    open-in-view: false    # REST API는 OEMIV 불필요. REQUIRES_NEW 커밋 후 1차 캐시 오염 방지
     hibernate:
       ddl-auto: validate   # 프로덕션에서 스키마 자동 변경 방지. 로컬은 application-local.yaml이 update로 오버라이드
     show-sql: false

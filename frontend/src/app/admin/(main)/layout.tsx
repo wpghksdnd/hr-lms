@@ -33,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 상단 헤더 — 고정, 전체 너비 */}
       <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[#1a1a2e] text-white flex items-center justify-between px-6">
         <Link href="/admin/dashboard" className="text-lg font-black tracking-tight text-[#4A90D9]">
-          LMS <span className="text-white text-sm font-normal">관리자</span>
+          INSIGHT <span className="text-white text-sm font-normal">관리자</span>
         </Link>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">{adminName}</span>

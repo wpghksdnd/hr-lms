@@ -174,11 +174,24 @@ public class NotificationService {
         Notification n = Notification.builder()
                 .user(user)
                 .type(type)
+                .title(resolveTitle(type))
                 .message(message)
                 .enrollmentId(enrollmentId)
                 .build();
         notificationRepository.save(n);
         log.debug("알림 생성: userId={}, type={}", user.getUserId(), type);
+    }
+
+    private String resolveTitle(NotificationType type) {
+        return switch (type) {
+            case ENROLLMENT_APPROVED -> "수강 승인";
+            case ENROLLMENT_REJECTED -> "수강 반려";
+            case CERTIFICATE_ISSUED  -> "이수증 발급";
+            case NEW_NOTICE          -> "새 공지";
+            case COURSE_STARTED      -> "교육 시작";
+            case COURSE_DEADLINE     -> "교육 마감 임박";
+            case SYSTEM              -> "시스템 알림";
+        };
     }
 
     private Notification findMyNotification(Long notificationId, Long userId) {

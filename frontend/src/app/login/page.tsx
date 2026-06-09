@@ -105,7 +105,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#f5f5f3] flex items-center justify-center p-4">
       <div className="w-full max-w-[400px] bg-white border border-black/[0.06] rounded-2xl p-6 sm:p-8 shadow-sm">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-black text-[#185FA5] tracking-tight mb-1">LMS</h1>
+          <h1 className="text-2xl font-black text-[#185FA5] tracking-tight mb-1">INSIGHT</h1>
           <p className="text-xs text-gray-400">사내 교육 플랫폼</p>
         </div>
 

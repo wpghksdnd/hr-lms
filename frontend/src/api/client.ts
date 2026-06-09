@@ -4,6 +4,7 @@ const client = axios.create({
   baseURL: '',   // Next.js rewrites가 /api/* → 백엔드로 프록시
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,  // httpOnly 쿠키 자동 전송
+  timeout: 30000,
 });
 
 let isRefreshing = false;

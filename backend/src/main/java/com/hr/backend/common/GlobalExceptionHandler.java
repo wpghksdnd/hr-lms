@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -103,6 +104,13 @@ public class GlobalExceptionHandler {
 
         log.warn("[Validation] {}", fieldErrors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /** 정적 리소스 없음 (favicon.ico, 루트 경로 등) → 404 (로그 없음) */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResource(NoResourceFoundException e) {
+        // 브라우저 자동 요청(favicon.ico 등)에 의한 노이즈 — 스택트레이스 없이 404만 반환
+        return ResponseEntity.notFound().build();
     }
 
     /** 그 외 예상치 못한 서버 오류 → 500 */

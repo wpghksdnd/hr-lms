@@ -196,6 +196,10 @@ public class EnrollmentService {
     @Transactional
     public EnrollmentResponse completeEnrollment(Long enrollmentId) {
         Enrollment enrollment = findEnrollmentOrThrow(enrollmentId);
+        // 이미 이수 완료된 경우 재검증 없이 반환 (재시험 시 불필요한 실패 방지)
+        if (enrollment.getStatus() == Enrollment.Status.DONE) {
+            return new EnrollmentResponse(enrollment);
+        }
         validateCompletionRequirements(enrollment);
 
         // 모든 조건을 만족하면 완료 처리
