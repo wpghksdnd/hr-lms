@@ -213,8 +213,18 @@ public class CertificateWorkflowService {
     public Resource downloadCertificate(Long id) {
         Certificate certificate = certificateRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("이수증을 찾을 수 없습니다."));
+
+        // PDF가 없으면 온디맨드 생성
         if (certificate.getFileUrl() == null || certificate.getFileUrl().isBlank()) {
-            throw new IllegalArgumentException("저장된 이수증 파일이 없습니다.");
+            log.info("[이수증 다운로드] PDF 없음 — 온디맨드 생성 시작 certId={}", id);
+            generateCertificateForRound(certificate.getUser().getUserId(), certificate.getRound().getRoundId());
+            // 생성 후 최신 상태 재조회
+            certificate = certificateRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("이수증을 찾을 수 없습니다."));
+        }
+
+        if (certificate.getFileUrl() == null || certificate.getFileUrl().isBlank()) {
+            throw new IllegalArgumentException("이수증 PDF 생성에 실패했습니다. 관리자에게 문의하세요.");
         }
 
         Path fullPath = resolveStoragePath(certificate.getFileUrl());

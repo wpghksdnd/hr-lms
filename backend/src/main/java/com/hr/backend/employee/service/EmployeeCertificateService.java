@@ -47,21 +47,8 @@ public class EmployeeCertificateService {
             log.warn("[이수증 보정1] 전체 실패: {}", ex.getMessage());
         }
 
-        // 보정 2: 이수증 레코드는 있는데 PDF가 없는 건 재생성
-        try {
-            certificateRepository.findAllByUserId(userId).stream()
-                    .filter(c -> c.getFileUrl() == null || c.getFileUrl().isBlank())
-                    .forEach(c -> {
-                        try {
-                            certificateWorkflowService.generateCertificateForRound(
-                                    c.getUser().getUserId(), c.getRound().getRoundId());
-                        } catch (Exception ex) {
-                            log.warn("[이수증 보정2] certificateId={} 실패: {}", c.getCertificateId(), ex.getMessage());
-                        }
-                    });
-        } catch (Exception ex) {
-            log.warn("[이수증 보정2] 전체 실패: {}", ex.getMessage());
-        }
+        // 보정 2는 getMyCertificates()에서 제거: 다수 PDF 동시 생성 시 OOM 위험
+        // PDF가 없는 이수증은 다운로드 시점에 온디맨드로 생성
 
         return certificateRepository.findAllByUserId(userId)
                 .stream()
