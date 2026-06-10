@@ -8,6 +8,7 @@ import com.hr.backend.domain.qna.repository.QnaAnswerRepository;
 import com.hr.backend.domain.qna.repository.QnaQuestionRepository;
 import com.hr.backend.domain.user.entity.User;
 import com.hr.backend.employee.dto.request.QnaQuestionRequest;
+import com.hr.backend.employee.dto.response.QnaBoardItemResponse;
 import com.hr.backend.employee.dto.response.QnaResponse;
 import com.hr.backend.employee.exception.ResourceNotFoundException;
 import com.hr.backend.employee.util.CurrentUserProvider;
@@ -28,6 +29,24 @@ public class EmployeeQnaService {
     private final CourseRepository      courseRepository;
     private final CurrentUserProvider   currentUserProvider;
 
+    /** 게시판 전체 목록 — content/answers 없이, isMine 플래그 포함 */
+    public List<QnaBoardItemResponse> getBoardQuestions() {
+        User me = currentUserProvider.getCurrentUser();
+        return qnaQuestionRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(q -> QnaBoardItemResponse.builder()
+                        .questionId(q.getQuestionId())
+                        .courseId(q.getCourse().getCourseId())
+                        .courseTitle(q.getCourse().getTitle())
+                        .title(q.getTitle())
+                        .authorName(q.getUser().getName())
+                        .resolved(q.isResolved())
+                        .answerCount(qnaAnswerRepository.countByQuestion_QuestionId(q.getQuestionId()))
+                        .isMine(q.getUser().getUserId().equals(me.getUserId()))
+                        .createdAt(q.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
     public List<QnaResponse> getMyQuestions() {
         User user = currentUserProvider.getCurrentUser();
         return qnaQuestionRepository
@@ -39,8 +58,9 @@ public class EmployeeQnaService {
     }
 
     public List<QnaResponse> getCourseQuestions(Long courseId) {
+        User user = currentUserProvider.getCurrentUser();
         return qnaQuestionRepository
-                .findAllByCourse_CourseIdOrderByCreatedAtDesc(courseId).stream()
+                .findAllByUser_UserIdAndCourse_CourseIdOrderByCreatedAtDesc(user.getUserId(), courseId).stream()
                 .sorted(Comparator.comparing(QnaQuestion::getCreatedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .map(this::toDto)
@@ -48,8 +68,12 @@ public class EmployeeQnaService {
     }
 
     public QnaResponse getQuestion(Long questionId) {
+        User user = currentUserProvider.getCurrentUser();
         QnaQuestion q = qnaQuestionRepository.findById(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("QnaQuestion", "questionId", questionId));
+        if (!q.getUser().getUserId().equals(user.getUserId())) {
+            throw new ResourceNotFoundException("QnaQuestion", "questionId", questionId);
+        }
         return toDto(q);
     }
 
