@@ -79,6 +79,113 @@ type YTPlayer = {
   destroy: () => void;
 };
 
+function CourseSelector({
+  courses,
+  selectedId,
+  onSelect,
+}: {
+  courses: MyCourseResponse[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = courses.find((c) => c.courseId === selectedId);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-[#185FA5]/40 hover:shadow-md transition-all group"
+      >
+        <div className="w-1.5 h-1.5 rounded-full bg-[#185FA5] shrink-0" />
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[11px] text-slate-400 font-medium leading-none mb-0.5">수강 중인 강좌</p>
+          <p className="text-sm font-bold text-slate-800 truncate">
+            {selected?.courseTitle ?? '강좌 선택'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          {selected && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#185FA5] rounded-full transition-all"
+                  style={{ width: `${selected.progress}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-bold text-[#185FA5] w-8 text-right">
+                {selected.progress}%
+              </span>
+            </div>
+          )}
+          <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
+            {courses.length}개
+          </span>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={`text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="p-2 max-h-72 overflow-y-auto">
+            {courses.map((c) => {
+              const isActive = c.courseId === selectedId;
+              const statusLabel =
+                c.status === 'DONE' ? '이수 완료' : c.status === 'IN_PROGRESS' ? '수강 중' : '미시작';
+              const statusCls =
+                c.status === 'DONE'
+                  ? 'text-emerald-600 bg-emerald-50'
+                  : c.status === 'IN_PROGRESS'
+                  ? 'text-blue-600 bg-blue-50'
+                  : 'text-slate-400 bg-slate-50';
+              return (
+                <button
+                  key={c.courseId}
+                  onClick={() => { onSelect(c.courseId); setOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                    isActive ? 'bg-blue-50 text-[#185FA5]' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-[#185FA5]' : 'bg-slate-300'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold truncate ${isActive ? 'text-[#185FA5]' : 'text-slate-700'}`}>
+                      {c.courseTitle}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#185FA5]/60 rounded-full" style={{ width: `${c.progress}%` }} />
+                      </div>
+                      <span className="text-[10px] text-slate-400">{c.progress}%</span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${statusCls}`}>
+                    {statusLabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LearningPage() {
   const [myCourses, setMyCourses] = useState<MyCourseResponse[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
@@ -601,20 +708,13 @@ export default function LearningPage() {
           onSubmitted={(feedback) => { setFeedbackDone(feedback); setFeedbackModal(null); }}
         />
       )}
-      {/* 강좌 탭 */}
+      {/* 강좌 셀렉터 */}
       {myCourses.length > 1 && (
-        <div className="flex gap-2 flex-wrap">
-          {myCourses.map((c) => (
-            <button key={c.courseId} onClick={() => setSelectedCourseId(c.courseId)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                selectedCourseId === c.courseId
-                  ? 'bg-[#185FA5] text-white border-[#185FA5]'
-                  : 'bg-white text-gray-600 border-gray-200'
-              }`}>
-              {c.courseTitle}
-            </button>
-          ))}
-        </div>
+        <CourseSelector
+          courses={myCourses}
+          selectedId={selectedCourseId}
+          onSelect={setSelectedCourseId}
+        />
       )}
 
       {loadingDetail ? (
