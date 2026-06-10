@@ -29,18 +29,47 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f3]">
-      {/* 상단 헤더 — 고정, 전체 너비 */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-[#1a1a2e] text-white flex items-center justify-between px-6">
-        <Link href="/admin/dashboard" className="text-lg font-black tracking-tight text-[#4A90D9]">
-          INSIGHT <span className="text-white text-sm font-normal">관리자</span>
+    <div className="min-h-screen text-sm text-slate-800 bg-[#F1F5F9]">
+
+      {/* ── 상단 헤더 ── */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center justify-between px-5 bg-white border-b border-slate-200/70 shadow-[0_1px_0_0_rgba(0,0,0,0.04)]">
+
+        {/* 로고 */}
+        <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-[#2563EB] flex items-center justify-center shadow-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+          </div>
+          <span className="font-black text-[15px] text-slate-900 tracking-tight">
+            INSIGHT
+            <span className="font-normal text-slate-400 text-xs ml-1.5">관리자</span>
+          </span>
         </Link>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400">{adminName}</span>
-          <button
-            onClick={handleLogout}
-            className="text-xs text-gray-400 hover:text-white border border-gray-600 hover:border-gray-400 px-3 py-1.5 rounded-lg transition-colors"
-          >
+
+        {/* 우측 */}
+        <div className="flex items-center gap-2">
+          {/* 관리자 배지 */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 border border-orange-200 rounded-lg">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+            </svg>
+            <span className="text-[11px] font-bold text-orange-600">관리자</span>
+          </div>
+
+          <div className="w-px h-5 bg-slate-200" />
+
+          {/* 유저 정보 */}
+          <div className="flex items-center gap-2 px-1">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-[11px] font-black text-white shadow-sm">
+              {adminName[0] ?? 'A'}
+            </div>
+            <span className="text-xs text-slate-600 font-medium hidden sm:block">{adminName}</span>
+          </div>
+
+          {/* 로그아웃 */}
+          <button onClick={handleLogout}
+            className="text-xs text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all">
             로그아웃
           </button>
         </div>
@@ -49,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 사이드바 + 본문 */}
       <div className="flex pt-14">
         <AdminSidebar />
-        <main className="ml-16 flex-1 px-4 md:px-6 py-6">
+        <main className="ml-16 flex-1 p-5 sm:p-7">
           <div className="max-w-[1400px] mx-auto">
             {children}
           </div>
