@@ -646,8 +646,9 @@ export default function LearningPage() {
   const allLecturesCompleted = (detail?.currentProgress ?? 0) >= 100 || detail?.currentStatus === 'DONE';
   const quizCompleted = detail?.quiz ? Boolean(detail.quiz.completed) : true;
   const learningCompleted = allLecturesCompleted || quizCompleted;
+  const hasExam = detail?.exam != null;
   const examPassed = Boolean(detail?.exam?.completed);
-  const canTakeExam = allVideosCompleted && learningCompleted && !examPassed;
+  const canTakeExam = hasExam && allVideosCompleted && learningCompleted && !examPassed;
   const retryQuizVideo = quizRetryLectureId
     ? sortedVideos.find((video) => video.lectureId === quizRetryLectureId)
     : null;
@@ -893,11 +894,13 @@ export default function LearningPage() {
                       <div>
                         <div className="text-sm font-bold text-emerald-700">모든 강의를 완료했습니다!</div>
                         <div className="text-[11px] text-emerald-600">
-                          {examPassed
-                            ? '최종 시험에 합격했습니다.'
-                            : quizCompleted
-                              ? '최종 시험에 도전해 이수를 완료하세요.'
-                              : '퀴즈 합격 후 최종 시험에 응시할 수 있습니다.'}
+                          {!hasExam
+                            ? '이 강좌는 시험 없이 이수가 완료됩니다.'
+                            : examPassed
+                              ? '최종 시험에 합격했습니다.'
+                              : quizCompleted
+                                ? '최종 시험에 도전해 이수를 완료하세요.'
+                                : '퀴즈 합격 후 최종 시험에 응시할 수 있습니다.'}
                         </div>
                       </div>
                     </div>
@@ -916,7 +919,7 @@ export default function LearningPage() {
                         disabled
                         className="shrink-0 px-4 py-2 bg-gray-200 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed"
                       >
-                        {examPassed ? '시험 합격 완료' : '시험 응시하기'}
+                        {!hasExam ? '시험 없음' : examPassed ? '시험 합격 완료' : '시험 응시하기'}
                       </button>
                     )}
                   </div>
