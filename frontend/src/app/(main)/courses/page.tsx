@@ -83,9 +83,9 @@ export default function CoursesPage() {
     setEnrollingId(course.courseId);
     try {
       await enrollCourse(course.roundId);
-      setCourses((prev) =>
-        prev.map((c) => c.courseId === course.courseId ? { ...c, enrollmentStatus: 'IN_PROGRESS' } : c)
-      );
+      // enrollmentId를 포함한 최신 데이터로 갱신 (낙관적 업데이트 시 enrollmentId가 누락됨)
+      const updated = await getCourses();
+      setCourses(updated);
     } catch (err: unknown) {
       alert(getApiError(err) || '수강 신청에 실패했습니다.');
     } finally {
