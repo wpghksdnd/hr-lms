@@ -1,5 +1,6 @@
 package com.hr.backend.employee.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ public class QnaBoardItemResponse {
     private String    authorName;   // 작성자 이름 (게시판 표시용)
     private boolean   resolved;
     private int       answerCount;
-    private boolean   isMine;       // 현재 로그인 유저가 작성한 글 여부
+    @JsonProperty("isMine")          // boolean + is 접두사 → Jackson이 "mine"으로 직렬화하는 것 방지
+    private boolean   isMine;
     private LocalDateTime createdAt;
 }
