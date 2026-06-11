@@ -71,13 +71,14 @@ export function ExamModal({ exam, onClose, onResult }: Props) {
               <p className={`text-sm font-bold ${result.passed ? 'text-emerald-600' : 'text-amber-600'}`}>
                 {result.passed ? '합격! 이수 조건을 완료했습니다.' : `불합격 (합격 기준: ${exam.passScore}점)`}
               </p>
+              {result.passed && (
+                <p className="text-[11px] text-gray-400">재응시해도 이수 상태는 유지됩니다.</p>
+              )}
               <div className="flex gap-2 mt-2">
-                {!result.passed && (
-                  <button onClick={() => { setAnswers({}); setResult(null); setCurrentIndex(0); setShowUnansweredOnly(false); }}
-                    className="px-4 py-2 text-xs font-bold bg-[#185FA5] text-white rounded-xl hover:bg-[#144f8b]">
-                    다시 응시하기
-                  </button>
-                )}
+                <button onClick={() => { setAnswers({}); setResult(null); setCurrentIndex(0); setShowUnansweredOnly(false); }}
+                  className="px-4 py-2 text-xs font-bold bg-[#185FA5] text-white rounded-xl hover:bg-[#144f8b]">
+                  다시 응시하기
+                </button>
                 <button onClick={onClose}
                   className="px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50">
                   닫기

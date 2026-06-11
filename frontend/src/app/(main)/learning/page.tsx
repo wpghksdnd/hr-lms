@@ -696,8 +696,8 @@ export default function LearningPage() {
         <ExamModal
           exam={examModal.exam}
           onClose={() => setExamModal(null)}
-          onResult={(passed) => {
-            if (passed && selectedCourseId) getMyCourseDetail(selectedCourseId).then(setDetail).catch(() => {});
+          onResult={() => {
+            if (selectedCourseId) getMyCourseDetail(selectedCourseId).then(setDetail).catch(() => {});
           }}
         />
       )}
@@ -913,13 +913,27 @@ export default function LearningPage() {
                       >
                         {examLoading ? '시험 불러오는 중...' : '시험 응시하기 →'}
                       </button>
+                    ) : examPassed ? (
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] text-emerald-600 font-bold">
+                          ✓ 합격 ({detail?.exam?.score}점)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleOpenExam}
+                          disabled={examLoading}
+                          className="shrink-0 px-3 py-1.5 border border-slate-300 hover:border-slate-400 text-slate-500 hover:text-slate-700 text-[11px] font-bold rounded-lg transition-colors"
+                        >
+                          {examLoading ? '불러오는 중...' : '재시험 응시하기'}
+                        </button>
+                      </div>
                     ) : (
                       <button
                         type="button"
                         disabled
                         className="shrink-0 px-4 py-2 bg-gray-200 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed"
                       >
-                        {!hasExam ? '시험 없음' : examPassed ? '시험 합격 완료' : '시험 응시하기'}
+                        {!hasExam ? '시험 없음' : '시험 응시하기'}
                       </button>
                     )}
                   </div>
