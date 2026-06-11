@@ -526,7 +526,7 @@ export default function LearningPage() {
   triggerQuizRef.current = triggerQuiz;
 
   const handleOpenExam = async () => {
-    if (!selectedCourseId || !canTakeExam) return;
+    if (!selectedCourseId || (!canTakeExam && !examPassed)) return;
     setExamLoading(true);
     try {
       const exam = await getExam(selectedCourseId);
